@@ -1,10 +1,10 @@
 ---
-name: Abstract-Area
+name: APT
 description: 현재 작업 디렉토리의 모든 PDF 논문들을 병렬 분석하여 핵심 연구 영역과 인사이트를 도출하고, 프리미엄 HTML 대시보드로 시각화합니다. 사용자가 특정 기술이나 분야에 대한 전반적인 연구 흐름이나 해결 과제를 파악하고자 할 때 트리거됩니다.
 argument-hint: "[언어(default:korean)] [재귀깊이(default:1)]"
 ---
 
-# Abstract-Area
+# Abstract Paper Tree
 
 당신은 연구 분야의 흐름을 파악하고 시각화하여 최상의 인사이트를 제공하는 전략 연구 에이전트입니다.
 
@@ -46,7 +46,7 @@ argument-hint: "[언어(default:korean)] [재귀깊이(default:1)]"
 `results/` 디렉토리의 모든 개별 JSON 파일을 하나의 `results.jsonl`로 병합합니다.
 
 ```bash
-python skills/Abstract_Area/scripts/merge_results.py [output_dir]
+python skills/APT/scripts/merge_results.py [output_dir]
 ```
 
 #### 3-2. 클러스터링
@@ -75,7 +75,7 @@ python skills/Abstract_Area/scripts/merge_results.py [output_dir]
 수집 및 분류된 3종의 데이터를 바탕으로 최종 시각화 페이지를 생성합니다.
 
 ```bash
-python skills/Abstract_Area/scripts/generate_index.py [output_dir]
+python skills/APT/scripts/generate_index.py [output_dir]
 ```
 
 ### 5단계: 재귀 클러스터링 (depth > 1인 경우)
@@ -89,7 +89,7 @@ python skills/Abstract_Area/scripts/generate_index.py [output_dir]
 **5-1. 클러스터 이름을 안전한 디렉토리명으로 변환 후 서브 데이터 추출**
 
 ```bash
-python skills/Abstract_Area/scripts/extract_subcluster.py {output_dir} "{cluster_name}" {filename1} {filename2} ...
+python skills/APT/scripts/extract_subcluster.py {output_dir} "{cluster_name}" {filename1} {filename2} ...
 ```
 
 **5-2. 서브 클러스터링**
@@ -106,7 +106,7 @@ python skills/Abstract_Area/scripts/extract_subcluster.py {output_dir} "{cluster
 예를 들어 `clusters/A/` (depth 2)에서는 `../../`, `clusters/A/clusters/B/` (depth 3)에서는 `../../../../`입니다.
 
 ```bash
-python skills/Abstract_Area/scripts/generate_index.py {sub_dir} --parent-url {relative_to_parent}/index.html --page-title "{cluster_name}" --tree-url {relative_to_root}/tree.html
+python skills/APT/scripts/generate_index.py {sub_dir} --parent-url {relative_to_parent}/index.html --page-title "{cluster_name}" --tree-url {relative_to_root}/tree.html
 ```
 
 **5-4. 재귀**
@@ -119,7 +119,7 @@ python skills/Abstract_Area/scripts/generate_index.py {sub_dir} --parent-url {re
 모든 서브 페이지 생성 완료 후, 서브 페이지 링크를 반영하기 위해 루트 대시보드를 재생성합니다.
 
 ```bash
-python skills/Abstract_Area/scripts/generate_index.py [output_dir]
+python skills/APT/scripts/generate_index.py [output_dir]
 ```
 
 ### 6단계: 트리 시각화 생성
@@ -127,5 +127,5 @@ python skills/Abstract_Area/scripts/generate_index.py [output_dir]
 모든 페이지 생성이 완료된 후, 전체 클러스터 계층을 방사형 트리로 시각화한 `tree.html`을 생성합니다.
 
 ```bash
-python skills/Abstract_Area/scripts/generate_tree.py [output_dir]
+python skills/APT/scripts/generate_tree.py [output_dir]
 ```

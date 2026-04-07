@@ -2,7 +2,7 @@
 클러스터의 논문 데이터를 서브 디렉토리로 추출합니다.
 
 사용법:
-    python skills/Abstract_Area/scripts/extract_subcluster.py <output_dir> <cluster_name> <filename1> [filename2 ...]
+    python skills/APT/scripts/extract_subcluster.py <output_dir> <cluster_name> <filename1> [filename2 ...]
 """
 import json
 import os

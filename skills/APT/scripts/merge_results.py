@@ -2,7 +2,7 @@
 results/*.json 파일들을 하나의 results.jsonl로 병합합니다.
 
 사용법:
-    python skills/Abstract_Area/scripts/merge_results.py [output_dir]
+    python skills/APT/scripts/merge_results.py [output_dir]
 """
 import glob
 import json
