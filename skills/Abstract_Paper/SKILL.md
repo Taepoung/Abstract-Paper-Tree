@@ -11,27 +11,23 @@ argument-hint: "논문 파일 이름 [언어(default:korean)]"
 
 ## 프로세스
 
+### ⚠️ 절대 규칙
+- Python 스크립트(`.py` 파일)는 **절대로 Read 도구로 읽지 않는다**. 반드시 Bash 도구로 **실행**만 한다.
+- 스크립트의 내부 코드를 확인하거나 분석하려는 시도를 하지 않는다.
+
 1.  **논문 파싱**
 
-현재 작업 디렉토리에서 주어진 논문 파일을 찾아서 다음 명령어로 파싱합니다.
+현재 작업 디렉토리에서 주어진 논문 파일을 찾아서 **반드시 Bash 도구로 다음 명령어를 실행**합니다. Read 도구로 스크립트를 읽는 것은 금지됩니다.
 
 ```bash
 python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 ```
 
-스크립트는 본문(References 이전)과 Appendix를 분리하여 시스템 임시 디렉토리에 저장합니다.
-- `{tmpdir}/paper_main.txt` — 본문
-- `{tmpdir}/paper_appendix.txt` — Appendix (없으면 빈 파일)
+스크립트는 본문(References 이전)과 Appendix를 분리하여 시스템 임시 디렉토리에 PDF 파일명 기반으로 저장합니다.
+- `{tmpdir}/{PDF파일명}_main.txt` — 본문
+- `{tmpdir}/{PDF파일명}_appendix.txt` — Appendix (없으면 빈 파일)
 
-(`{tmpdir}`은 OS에 따라 `/tmp` 또는 `%TEMP%` 등)
-
-이후 두 파일을 읽어 내용 분석에 사용합니다.
-
-```bash
-python -c "import tempfile; t=tempfile.gettempdir(); print(f'Main: {t}/paper_main.txt'); print(f'Appendix: {t}/paper_appendix.txt')"
-cat "$(python -c 'import tempfile;print(tempfile.gettempdir())')"/paper_main.txt
-cat "$(python -c 'import tempfile;print(tempfile.gettempdir())')"/paper_appendix.txt
-```
+스크립트의 stdout에 각 파일의 전체 경로가 출력되므로, 이를 확인하여 두 파일을 읽어 내용 분석에 사용합니다.
 
 2.  **내용 분석**:
 
@@ -80,7 +76,7 @@ cat "$(python -c 'import tempfile;print(tempfile.gettempdir())')"/paper_appendix
 
 3.  **출력**:
 
-분석 결과 JSON을 stdout에 작성한 뒤 저장 스크립트에 파이프로 전달합니다.
+분석 결과 JSON을 **반드시 Bash 도구로 다음 명령어를 실행**하여 저장 스크립트에 파이프로 전달합니다. Read 도구로 스크립트를 읽는 것은 금지됩니다.
 
 ```bash
 python skills/Abstract_Paper/scripts/save_result.py << 'EOF'

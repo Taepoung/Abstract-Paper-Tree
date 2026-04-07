@@ -9,9 +9,9 @@ PDF 파일을 파싱하고 본문 / Appendix로 분리합니다.
               생략하면 앱 업로드 경로(/mnt/user-data/uploads/)에서 찾습니다.
 
 출력:
-    /tmp/paper_main.txt       — 본문 (References/Bibliography 이전)
-    /tmp/paper_appendix.txt   — Appendix (없으면 빈 파일)
-    stdout: PDF 경로, 분리 결과 요약
+    {tmpdir}/{stem}_main.txt       — 본문 (References/Bibliography 이전)
+    {tmpdir}/{stem}_appendix.txt   — Appendix (없으면 빈 파일)
+    stdout: PDF 경로, 파일 경로, 분리 결과 요약
 """
 
 import glob
@@ -72,9 +72,10 @@ def main():
 
     import tempfile
     tmp_dir = tempfile.gettempdir()
-    raw_path = os.path.join(tmp_dir, "paper_raw.txt")
-    main_path = os.path.join(tmp_dir, "paper_main.txt")
-    app_path = os.path.join(tmp_dir, "paper_appendix.txt")
+    stem = os.path.splitext(os.path.basename(pdf))[0]
+    raw_path = os.path.join(tmp_dir, f"{stem}_raw.txt")
+    main_path = os.path.join(tmp_dir, f"{stem}_main.txt")
+    app_path = os.path.join(tmp_dir, f"{stem}_appendix.txt")
 
     subprocess.run(["pdftotext", "-layout", pdf, raw_path], check=True)
 
@@ -88,6 +89,8 @@ def main():
         f.write(appendix_text)
 
     has_appendix = "있음" if appendix_text else "없음"
+    print(f"본문: {main_path}")
+    print(f"부록: {app_path}")
     print(f"분리 완료 — 본문: {len(main_text)}자 / Appendix: {has_appendix}")
 
 
