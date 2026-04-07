@@ -144,6 +144,13 @@
          * DATA_INJECTION_POINT_END
          */
 
+        function escapeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
         let myChart = null;
         let currentTab = 'problem';
 
@@ -251,22 +258,22 @@
                 card.className = 'bg-white p-8 rounded-[2rem] card-shadow border border-slate-100 space-y-4 animate-slide-up hover:border-orange-200 transition-colors cursor-default';
                 card.innerHTML = `
                     <div class="flex flex-col space-y-1">
-                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 self-start px-2 py-0.5 rounded-md">${paper.filename}</span>
-                        <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${paper.title}</h6>
+                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 self-start px-2 py-0.5 rounded-md">${escapeHTML(paper.filename)}</span>
+                        <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${escapeHTML(paper.title)}</h6>
                     </div>
                     <div class="space-y-4 pt-2">
                         <div class="bg-slate-50 p-4 rounded-2xl">
                             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Research Problem (해결하려는 문제)</p>
-                            <p class="text-sm text-slate-600 leading-relaxed">${paper.problem}</p>
+                            <p class="text-sm text-slate-600 leading-relaxed">${escapeHTML(paper.problem)}</p>
                         </div>
                         <div class="bg-orange-50/50 p-4 rounded-2xl">
                             <p class="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 italic">Key Methodology (해결 방법)</p>
-                            <p class="text-sm text-slate-700 leading-relaxed font-medium">${paper.methodology}</p>
+                            <p class="text-sm text-slate-700 leading-relaxed font-medium">${escapeHTML(paper.methodology)}</p>
                         </div>
                         ${paper.limitation ? `
                         <div class="p-4 border border-slate-100 rounded-2xl">
                             <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 italic text-right">Trade-off / Limitation (한계점)</p>
-                            <p class="text-xs text-slate-400 leading-relaxed text-right">${paper.limitation}</p>
+                            <p class="text-xs text-slate-400 leading-relaxed text-right">${escapeHTML(paper.limitation)}</p>
                         </div>` : ''}
                     </div>
                 `;
