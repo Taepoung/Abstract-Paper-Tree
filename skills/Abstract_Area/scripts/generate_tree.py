@@ -1,0 +1,181 @@
+"""
+problem.json / method.json 계층 구조를 읽어 방사형 트리 시각화 페이지(tree.html)를 생성합니다.
+
+사용법:
+    python skills/Abstract_Area/scripts/generate_tree.py [output_dir]
+"""
+import argparse
+import json
+import os
+import re
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def sanitize_dirname(name):
+    safe = re.sub(r'[^\w\s\-]', '', name, flags=re.UNICODE)
+    safe = re.sub(r'\s+', '_', safe).strip('_')
+    return safe[:60] if safe else 'cluster'
+
+
+def count_papers(directory):
+    results_file = os.path.join(directory, 'results.jsonl')
+    if not os.path.exists(results_file):
+        return 0
+    with open(results_file, 'r', encoding='utf-8') as f:
+        return sum(1 for line in f if line.strip())
+
+
+def load_results(directory):
+    results_map = {}
+    results_file = os.path.join(directory, 'results.jsonl')
+    if os.path.exists(results_file):
+        with open(results_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        data = json.loads(line)
+                        if data.get('filename'):
+                            results_map[data['filename']] = data
+                    except json.JSONDecodeError:
+                        pass
+    return results_map
+
+
+def paper_leaf(filename, results_map, cluster_url):
+    """논문 파일명을 리프 노드로 변환."""
+    paper = results_map.get(filename, {})
+    return {
+        'name': paper.get('title', filename),
+        'filename': filename,
+        'url': cluster_url,
+        'count': 0,
+        'summary': paper.get('problem', ''),
+        'children': [],
+        'is_paper': True,
+    }
+
+
+def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
+    """problem.json 기반 트리 — 리프 클러스터에 논문 노드 추가."""
+    problem_file = os.path.join(output_dir, 'problem.json')
+    if not os.path.exists(problem_file):
+        return None
+
+    if results_map is None:
+        results_map = load_results(output_dir)
+
+    with open(problem_file, 'r', encoding='utf-8') as f:
+        clusters = json.load(f)
+
+    children = []
+    for name, info in clusters.items():
+        safe_name = sanitize_dirname(name)
+        sub_dir = os.path.join(output_dir, 'clusters', safe_name)
+        sub_index = os.path.join(sub_dir, 'index.html')
+        sub_url = f'clusters/{safe_name}/index.html'
+        cluster_url = sub_url if os.path.exists(sub_index) else 'index.html'
+
+        node = {
+            'name': name,
+            'url': cluster_url,
+            'count': len(info.get('filenames', [])),
+            'summary': info.get('summary', ''),
+            'children': [],
+        }
+
+        # 서브 클러스터 재귀
+        if os.path.exists(sub_dir):
+            sub_results = load_results(sub_dir) or results_map
+            sub_tree = build_problem_tree(sub_dir, root_label=name, results_map=sub_results)
+            if sub_tree and sub_tree['children']:
+                node['children'] = sub_tree['children']
+
+        # 서브 클러스터 없으면 논문을 리프로
+        if not node['children']:
+            for fn in info.get('filenames', []):
+                node['children'].append(paper_leaf(fn, results_map, cluster_url))
+
+        children.append(node)
+
+    return {
+        'name': root_label,
+        'url': 'index.html',
+        'count': count_papers(output_dir),
+        'summary': '',
+        'children': children,
+    }
+
+
+def build_method_tree(output_dir):
+    """method.json 기반 트리 — 리프 노드에 논문 추가."""
+    method_file = os.path.join(output_dir, 'method.json')
+    if not os.path.exists(method_file):
+        return None
+
+    results_map = load_results(output_dir)
+
+    with open(method_file, 'r', encoding='utf-8') as f:
+        clusters = json.load(f)
+
+    children = []
+    for name, info in clusters.items():
+        node = {
+            'name': name,
+            'url': 'index.html',
+            'count': len(info.get('filenames', [])),
+            'summary': info.get('summary', ''),
+            'children': [paper_leaf(fn, results_map, 'index.html') for fn in info.get('filenames', [])],
+        }
+        children.append(node)
+
+    return {
+        'name': 'Research Map',
+        'url': 'index.html',
+        'count': count_papers(output_dir),
+        'summary': '',
+        'children': children,
+    }
+
+
+def generate_tree(output_dir):
+    problem_tree = build_problem_tree(output_dir)
+    method_tree = build_method_tree(output_dir)
+
+    if not problem_tree and not method_tree:
+        print("Error: problem.json / method.json not found.")
+        sys.exit(1)
+
+    template_path = os.path.join(SCRIPT_DIR, '..', 'assets', 'tree_template.html')
+    if not os.path.exists(template_path):
+        print(f"Error: '{template_path}' not found.")
+        sys.exit(1)
+
+    with open(template_path, 'r', encoding='utf-8') as f:
+        html = f.read()
+
+    html = html.replace(
+        'const problemTreeData = {};',
+        f'const problemTreeData = {json.dumps(problem_tree or {}, ensure_ascii=False)};'
+    ).replace(
+        'const methodTreeData = {};',
+        f'const methodTreeData = {json.dumps(method_tree or {}, ensure_ascii=False)};'
+    )
+
+    output_file = os.path.join(output_dir, 'tree.html')
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    print(f"Generated {output_file}")
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output_dir', nargs='?', default='.')
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.output_dir):
+        print(f"Error: '{args.output_dir}' is not a valid directory.")
+        sys.exit(1)
+    generate_tree(args.output_dir)

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Insights Chart Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(226, 232, 240, 0.5);
+        }
+
+        .accent-gradient {
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.6s ease-out forwards;
+        }
+
+        .tab-active {
+            color: #f97316;
+            border-bottom: 3px solid #f97316;
+            font-weight: 800;
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-6 md:p-12">
+    <div class="max-w-7xl mx-auto space-y-12">
+        <!-- Header & Nav -->
+        <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-slate-200 pb-8">
+            <div class="space-y-2">
+                <div id="back-nav" class="hidden">
+                    <a id="back-link" href="#"
+                        class="inline-flex items-center gap-1.5 text-slate-400 hover:text-orange-500 transition-colors text-sm font-semibold">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        상위 클러스터로
+                    </a>
+                </div>
+                <h1 class="text-4xl font-extrabold tracking-tighter text-slate-900 flex items-center gap-3">
+                    <span class="w-10 h-10 accent-gradient rounded-xl shadow-lg shadow-orange-200"></span>
+                    <span id="page-title-text">Interactive Research Map</span>
+                </h1>
+                <p class="text-slate-400 font-medium tracking-tight">Clustered Academic Insights & Trend Analytics</p>
+            </div>
+            <nav class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+                <button onclick="switchTab('problem')" id="tab-problem"
+                    class="px-8 py-3 rounded-xl text-sm font-bold transition-all tab-active">Problem Clusters</button>
+                <button onclick="switchTab('methodology')" id="tab-methodology"
+                    class="px-8 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-600 transition-all">Methodology
+                    Clusters</button>
+            </nav>
+            <a href="preview_tree.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                Tree View
+            </a>
+        </header>
+
+        <!-- Main Visualization Section -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <!-- Chart Side -->
+            <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-bold text-slate-800">Cluster Distribution</h3>
+                    <span
+                        class="text-xs font-bold text-orange-500 uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-full">Interactive
+                        Chart</span>
+                </div>
+                <div class="relative h-[400px]">
+                    <canvas id="insightChart"></canvas>
+                </div>
+                <p class="text-xs text-slate-400 italic text-center">※ 바를 클릭하여 해당 클러스터의 상세 논문 리스트를 확인하세요.</p>
+            </div>
+
+            <!-- Summary Side -->
+            <div class="space-y-6">
+                <div
+                    class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 flex flex-col items-center text-center space-y-4">
+                    <div class="w-16 h-16 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-3xl font-extrabold text-slate-900" id="total-papers-counter">0</h4>
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">Papers Analyzed</p>
+                    </div>
+                </div>
+
+                <div id="cluster-summary-card"
+                    class="bg-gradient-to-br from-orange-500 to-orange-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-orange-100 space-y-4 animate-slide-up">
+                    <h5 class="text-lg font-extrabold" id="selected-cluster-name">Cluster Details</h5>
+                    <p class="text-orange-50 text-sm leading-relaxed" id="selected-cluster-summary">차트의 막대를 클릭하면 해당 영역의
+                        핵심 요약이 여기에 표시됩니다.</p>
+                    <div id="sub-cluster-link"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Detailed Paper List (Drill-down) -->
+        <section id="detail-section" class="space-y-8 pb-20">
+            <div class="flex items-center gap-4 px-4">
+                <h3 class="text-2xl font-bold text-slate-800">Papers in Cluster</h3>
+                <div class="h-1 flex-grow bg-slate-100 rounded-full"></div>
+            </div>
+
+            <div id="paper-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Detailed Cards will be injected here -->
+                <div
+                    class="md:col-span-2 text-center py-20 text-slate-300 font-medium italic bg-white/50 rounded-3xl border-2 border-dashed border-slate-100">
+                    분석 결과를 보려면 차트에서 그룹을 선택하세요.
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Data Injection & Logic -->
+    <script>
+        /**
+         * DATA_INJECTION_POINT_START
+         */
+        const researchResults = [
+  {
+    "filename": "llm_int8.pdf",
+    "title": "LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale",
+    "problem": "대형 언어 모델을 GPU에서 추론할 때 메모리 요구량이 너무 커서 실용적 배포가 어렵다.",
+    "methodology": "LLM.int8() 방법을 제안한다. (키워드: Int8 Quantization, Mixed Precision, Vector-wise Quantization, Outlier Features, Threshold) FP16 선형 레이어를 Int8로 분해하되, 이상치(outlier) 값은 FP16으로 유지하는 혼합 정밀도 분해 방식이다. 파이프라인: (1) 입력 행렬 → 열 단위 이상치 탐지 → 이상치/비이상치 분리 (2) 비이상치 부분 → Int8 행렬 곱 → Int8 결과 (3) 이상치 부분 → FP16 행렬 곱 → FP16 결과 (4) 두 결과 합산 → 최종 출력.",
+    "limitation": "이상치 탐지 임계값이 고정되어 있어 모델·도메인마다 최적 임계값이 다를 수 있다."
+  },
+  {
+    "filename": "gptq.pdf",
+    "title": "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers",
+    "problem": "수백억 파라미터 GPT 계열 모델을 정확도 손실 없이 4비트 이하로 양자화하는 효율적 방법이 부재하다.",
+    "methodology": "GPTQ라는 PTQ 방법을 제안한다. (키워드: OBQ, Hessian, Layer-wise Quantization, Cholesky, Block Update) 2차 최적화(OBQ)를 layer-wise로 근사하여 계산 비용을 크게 줄인다. 파이프라인: (1) 가중치 행렬 → Hessian 계산 → 역행렬 근사 (Cholesky) (2) 열 단위 순서로 양자화 → 잔차 오차 → 나머지 열에 보정 (3) 전체 레이어 반복 → 양자화된 모델.",
+    "limitation": "Hessian 계산에 캘리브레이션 데이터가 필요하며, 데이터 분포에 따라 성능 편차가 발생한다."
+  },
+  {
+    "filename": "distilbert.pdf",
+    "title": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+    "problem": "BERT는 높은 성능을 제공하지만 파라미터 수가 많아 추론 지연과 메모리 비용이 크다.",
+    "methodology": "DistilBERT를 제안한다. (키워드: Knowledge Distillation, Soft Targets, Cosine Similarity Loss, Triple Loss, Teacher-Student) BERT의 지식을 40% 작은 학생 모델로 전달하기 위해 소프트 레이블·히든 스테이트·코사인 유사도 손실을 결합한다. 파이프라인: (1) Teacher BERT 출력 → Soft probability distribution (2) Student 모델 → 동일 입력 처리 → 예측 분포 (3) Distillation loss + MLM loss + Cosine loss 결합 → 학생 모델 학습.",
+    "limitation": "교사 모델 크기에 비례하여 학습 비용이 증가하며, NSP 태스크 제거로 일부 downstream 성능이 저하된다."
+  },
+  {
+    "filename": "longformer.pdf",
+    "title": "Longformer: The Long-Document Transformer",
+    "problem": "기존 Transformer의 Self-Attention은 O(n²) 복잡도로 긴 문서(수천 토큰) 처리가 불가능하다.",
+    "methodology": "Longformer를 제안한다. (키워드: Sliding Window Attention, Global Attention, Dilated Attention, Sparse Attention, Local Context) 슬라이딩 윈도우 로컬 어텐션과 특정 토큰에 대한 전역 어텐션을 결합하여 O(n) 복잡도를 달성한다. 파이프라인: (1) 입력 시퀀스 → 각 토큰에 고정 크기 윈도우 어텐션 적용 (2) [CLS], 질의 토큰 등 → 전역 어텐션 적용 (3) 두 어텐션 결합 → 문맥화 표현 → 태스크별 출력.",
+    "limitation": "슬라이딩 윈도우 크기 선택이 태스크에 따라 다르며, 전역 어텐션 토큰 선택에 도메인 지식이 필요하다."
+  },
+  {
+    "filename": "flashattention.pdf",
+    "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+    "problem": "표준 Self-Attention 구현은 HBM 접근 횟수가 많아 GPU 메모리 대역폭을 병목으로 만들고, 시퀀스 길이에 비례하는 메모리를 요구한다.",
+    "methodology": "FlashAttention을 제안한다. (키워드: IO-Awareness, Tiling, SRAM, Online Softmax, Recomputation, HBM) 어텐션 계산을 블록 단위로 분할하여 SRAM 내에서 완결함으로써 HBM 접근을 최소화한다. 파이프라인: (1) Q, K, V → 블록 단위 분할 (2) 각 블록 → SRAM 로드 → 부분 소프트맥스 및 어텐션 계산 (3) 수치 안정화된 온라인 softmax로 블록 결과 누적 (4) 최종 O 행렬 출력.",
+    "limitation": "CUDA 커널을 직접 구현해야 하므로 새 하드웨어/프레임워크로의 이식 비용이 크다."
+  },
+  {
+    "filename": "clip.pdf",
+    "title": "Learning Transferable Visual Models From Natural Language Supervision",
+    "problem": "기존 시각 모델은 고정된 카테고리 집합에 의존하여 zero-shot 일반화 능력이 부족하다.",
+    "methodology": "CLIP을 제안한다. (키워드: Contrastive Learning, Image Encoder, Text Encoder, Zero-shot Transfer, Cosine Similarity, Natural Language Supervision) 이미지-텍스트 쌍의 대조 학습으로 공유 임베딩 공간을 구축한다. 파이프라인: (1) 이미지 → ViT/ResNet 인코딩 → 이미지 임베딩 (2) 텍스트 설명 → Transformer 인코딩 → 텍스트 임베딩 (3) 배치 내 이미지-텍스트 유사도 행렬 계산 → 대각선 최대화 대조 손실 (4) 추론 시 텍스트 프롬프트와 이미지 임베딩 유사도 비교 → zero-shot 분류.",
+    "limitation": "대규모 웹 크롤링 데이터 의존으로 사회적 편향이 임베딩 공간에 내재될 수 있다."
+  },
+  {
+    "filename": "chain_of_thought.pdf",
+    "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+    "problem": "대형 언어 모델은 수학 추론, 상식 추론 등 다단계 사고가 필요한 문제에서 성능이 낮다.",
+    "methodology": "Chain-of-Thought(CoT) 프롬프팅을 제안한다. (키워드: Few-shot Prompting, Intermediate Reasoning Steps, Arithmetic Reasoning, Commonsense Reasoning, Scaling) 답 직전에 풀이 과정을 단계별로 서술하는 예시를 프롬프트에 포함하여 모델이 추론 체인을 모방하도록 유도한다. 파이프라인: (1) 문제 + 풀이 단계 포함 예시 n개 → 프롬프트 구성 (2) 테스트 문제 추가 → LLM 입력 (3) 모델 → 중간 추론 단계 생성 → 최종 답변 출력.",
+    "limitation": "CoT 효과는 100B 이상 대형 모델에서만 안정적으로 나타나며, 예시 구성에 인간 레이블링이 필요하다."
+  },
+  {
+    "filename": "lora.pdf",
+    "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+    "problem": "대형 언어 모델의 전체 파인튜닝은 파라미터 수에 비례하는 GPU 메모리와 스토리지가 필요해 실용적이지 않다.",
+    "methodology": "LoRA를 제안한다. (키워드: Low-Rank Decomposition, Adapter, Frozen Weights, Delta W, Rank r, Scaling Factor α) 기존 가중치를 고정하고 작은 랭크의 행렬 쌍(A, B)만 학습하여 가중치 변화량을 근사한다. 파이프라인: (1) 사전학습 가중치 W 고정 (2) ΔW = BA 형태로 랭크-r 행렬 초기화 (3) 순전파 시 Wx + BAx 계산 (4) BA 행렬만 역전파 업데이트 → 최종 W' = W + BA로 병합 가능.",
+    "limitation": "랭크 r을 레이어별로 동일하게 설정하므로 레이어마다 최적 랭크가 다를 수 있는 점이 고려되지 않는다."
+  }
+];
+        const problemGroups = {
+  "효율적 추론 및 연산 최적화": {
+    "summary": "모델 추론 속도와 메모리 효율을 높이기 위한 양자화, 프루닝, 지식 증류 기반 연구들로, 엣지 디바이스 배포를 목표로 합니다.",
+    "papers": [
+      {
+        "filename": "llm_int8.pdf",
+        "title": "LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale",
+        "problem": "대형 언어 모델을 GPU에서 추론할 때 메모리 요구량이 너무 커서 실용적 배포가 어렵다.",
+        "methodology": "LLM.int8() 방법을 제안한다. (키워드: Int8 Quantization, Mixed Precision, Vector-wise Quantization, Outlier Features, Threshold) FP16 선형 레이어를 Int8로 분해하되, 이상치(outlier) 값은 FP16으로 유지하는 혼합 정밀도 분해 방식이다. 파이프라인: (1) 입력 행렬 → 열 단위 이상치 탐지 → 이상치/비이상치 분리 (2) 비이상치 부분 → Int8 행렬 곱 → Int8 결과 (3) 이상치 부분 → FP16 행렬 곱 → FP16 결과 (4) 두 결과 합산 → 최종 출력.",
+        "limitation": "이상치 탐지 임계값이 고정되어 있어 모델·도메인마다 최적 임계값이 다를 수 있다."
+      },
+      {
+        "filename": "gptq.pdf",
+        "title": "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers",
+        "problem": "수백억 파라미터 GPT 계열 모델을 정확도 손실 없이 4비트 이하로 양자화하는 효율적 방법이 부재하다.",
+        "methodology": "GPTQ라는 PTQ 방법을 제안한다. (키워드: OBQ, Hessian, Layer-wise Quantization, Cholesky, Block Update) 2차 최적화(OBQ)를 layer-wise로 근사하여 계산 비용을 크게 줄인다. 파이프라인: (1) 가중치 행렬 → Hessian 계산 → 역행렬 근사 (Cholesky) (2) 열 단위 순서로 양자화 → 잔차 오차 → 나머지 열에 보정 (3) 전체 레이어 반복 → 양자화된 모델.",
+        "limitation": "Hessian 계산에 캘리브레이션 데이터가 필요하며, 데이터 분포에 따라 성능 편차가 발생한다."
+      },
+      {
+        "filename": "distilbert.pdf",
+        "title": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+        "problem": "BERT는 높은 성능을 제공하지만 파라미터 수가 많아 추론 지연과 메모리 비용이 크다.",
+        "methodology": "DistilBERT를 제안한다. (키워드: Knowledge Distillation, Soft Targets, Cosine Similarity Loss, Triple Loss, Teacher-Student) BERT의 지식을 40% 작은 학생 모델로 전달하기 위해 소프트 레이블·히든 스테이트·코사인 유사도 손실을 결합한다. 파이프라인: (1) Teacher BERT 출력 → Soft probability distribution (2) Student 모델 → 동일 입력 처리 → 예측 분포 (3) Distillation loss + MLM loss + Cosine loss 결합 → 학생 모델 학습.",
+        "limitation": "교사 모델 크기에 비례하여 학습 비용이 증가하며, NSP 태스크 제거로 일부 downstream 성능이 저하된다."
+      }
+    ],
+    "sub_page_url": "preview_sub_index.html"
+  },
+  "장문맥 이해 및 처리": {
+    "summary": "수만 토큰 이상의 긴 문서를 처리하기 위한 어텐션 메커니즘 개선 및 메모리 아키텍처 연구입니다.",
+    "papers": [
+      {
+        "filename": "longformer.pdf",
+        "title": "Longformer: The Long-Document Transformer",
+        "problem": "기존 Transformer의 Self-Attention은 O(n²) 복잡도로 긴 문서(수천 토큰) 처리가 불가능하다.",
+        "methodology": "Longformer를 제안한다. (키워드: Sliding Window Attention, Global Attention, Dilated Attention, Sparse Attention, Local Context) 슬라이딩 윈도우 로컬 어텐션과 특정 토큰에 대한 전역 어텐션을 결합하여 O(n) 복잡도를 달성한다. 파이프라인: (1) 입력 시퀀스 → 각 토큰에 고정 크기 윈도우 어텐션 적용 (2) [CLS], 질의 토큰 등 → 전역 어텐션 적용 (3) 두 어텐션 결합 → 문맥화 표현 → 태스크별 출력.",
+        "limitation": "슬라이딩 윈도우 크기 선택이 태스크에 따라 다르며, 전역 어텐션 토큰 선택에 도메인 지식이 필요하다."
+      },
+      {
+        "filename": "flashattention.pdf",
+        "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+        "problem": "표준 Self-Attention 구현은 HBM 접근 횟수가 많아 GPU 메모리 대역폭을 병목으로 만들고, 시퀀스 길이에 비례하는 메모리를 요구한다.",
+        "methodology": "FlashAttention을 제안한다. (키워드: IO-Awareness, Tiling, SRAM, Online Softmax, Recomputation, HBM) 어텐션 계산을 블록 단위로 분할하여 SRAM 내에서 완결함으로써 HBM 접근을 최소화한다. 파이프라인: (1) Q, K, V → 블록 단위 분할 (2) 각 블록 → SRAM 로드 → 부분 소프트맥스 및 어텐션 계산 (3) 수치 안정화된 온라인 softmax로 블록 결과 누적 (4) 최종 O 행렬 출력.",
+        "limitation": "CUDA 커널을 직접 구현해야 하므로 새 하드웨어/프레임워크로의 이식 비용이 크다."
+      }
+    ],
+    "sub_page_url": null
+  },
+  "멀티모달 정렬 및 이해": {
+    "summary": "언어와 시각 정보를 통합하여 이미지-텍스트 간 의미 정렬을 학습하는 연구 흐름입니다.",
+    "papers": [
+      {
+        "filename": "clip.pdf",
+        "title": "Learning Transferable Visual Models From Natural Language Supervision",
+        "problem": "기존 시각 모델은 고정된 카테고리 집합에 의존하여 zero-shot 일반화 능력이 부족하다.",
+        "methodology": "CLIP을 제안한다. (키워드: Contrastive Learning, Image Encoder, Text Encoder, Zero-shot Transfer, Cosine Similarity, Natural Language Supervision) 이미지-텍스트 쌍의 대조 학습으로 공유 임베딩 공간을 구축한다. 파이프라인: (1) 이미지 → ViT/ResNet 인코딩 → 이미지 임베딩 (2) 텍스트 설명 → Transformer 인코딩 → 텍스트 임베딩 (3) 배치 내 이미지-텍스트 유사도 행렬 계산 → 대각선 최대화 대조 손실 (4) 추론 시 텍스트 프롬프트와 이미지 임베딩 유사도 비교 → zero-shot 분류.",
+        "limitation": "대규모 웹 크롤링 데이터 의존으로 사회적 편향이 임베딩 공간에 내재될 수 있다."
+      }
+    ],
+    "sub_page_url": null
+  },
+  "LLM 추론 능력 및 정렬": {
+    "summary": "Chain-of-Thought, LoRA 등 단계적 추론과 파라미터 효율 학습으로 모델 능력을 높이는 연구입니다.",
+    "papers": [
+      {
+        "filename": "chain_of_thought.pdf",
+        "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+        "problem": "대형 언어 모델은 수학 추론, 상식 추론 등 다단계 사고가 필요한 문제에서 성능이 낮다.",
+        "methodology": "Chain-of-Thought(CoT) 프롬프팅을 제안한다. (키워드: Few-shot Prompting, Intermediate Reasoning Steps, Arithmetic Reasoning, Commonsense Reasoning, Scaling) 답 직전에 풀이 과정을 단계별로 서술하는 예시를 프롬프트에 포함하여 모델이 추론 체인을 모방하도록 유도한다. 파이프라인: (1) 문제 + 풀이 단계 포함 예시 n개 → 프롬프트 구성 (2) 테스트 문제 추가 → LLM 입력 (3) 모델 → 중간 추론 단계 생성 → 최종 답변 출력.",
+        "limitation": "CoT 효과는 100B 이상 대형 모델에서만 안정적으로 나타나며, 예시 구성에 인간 레이블링이 필요하다."
+      },
+      {
+        "filename": "lora.pdf",
+        "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+        "problem": "대형 언어 모델의 전체 파인튜닝은 파라미터 수에 비례하는 GPU 메모리와 스토리지가 필요해 실용적이지 않다.",
+        "methodology": "LoRA를 제안한다. (키워드: Low-Rank Decomposition, Adapter, Frozen Weights, Delta W, Rank r, Scaling Factor α) 기존 가중치를 고정하고 작은 랭크의 행렬 쌍(A, B)만 학습하여 가중치 변화량을 근사한다. 파이프라인: (1) 사전학습 가중치 W 고정 (2) ΔW = BA 형태로 랭크-r 행렬 초기화 (3) 순전파 시 Wx + BAx 계산 (4) BA 행렬만 역전파 업데이트 → 최종 W' = W + BA로 병합 가능.",
+        "limitation": "랭크 r을 레이어별로 동일하게 설정하므로 레이어마다 최적 랭크가 다를 수 있는 점이 고려되지 않는다."
+      }
+    ],
+    "sub_page_url": null
+  }
+};
+        const methodologyGroups = {
+  "양자화 및 경량화": {
+    "summary": "Post-training quantization과 혼합 정밀도 기법으로 모델 크기를 줄이는 방법론.",
+    "papers": [
+      {
+        "filename": "llm_int8.pdf",
+        "title": "LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale",
+        "problem": "대형 언어 모델을 GPU에서 추론할 때 메모리 요구량이 너무 커서 실용적 배포가 어렵다.",
+        "methodology": "LLM.int8() 방법을 제안한다. (키워드: Int8 Quantization, Mixed Precision, Vector-wise Quantization, Outlier Features, Threshold) FP16 선형 레이어를 Int8로 분해하되, 이상치(outlier) 값은 FP16으로 유지하는 혼합 정밀도 분해 방식이다. 파이프라인: (1) 입력 행렬 → 열 단위 이상치 탐지 → 이상치/비이상치 분리 (2) 비이상치 부분 → Int8 행렬 곱 → Int8 결과 (3) 이상치 부분 → FP16 행렬 곱 → FP16 결과 (4) 두 결과 합산 → 최종 출력.",
+        "limitation": "이상치 탐지 임계값이 고정되어 있어 모델·도메인마다 최적 임계값이 다를 수 있다."
+      },
+      {
+        "filename": "gptq.pdf",
+        "title": "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers",
+        "problem": "수백억 파라미터 GPT 계열 모델을 정확도 손실 없이 4비트 이하로 양자화하는 효율적 방법이 부재하다.",
+        "methodology": "GPTQ라는 PTQ 방법을 제안한다. (키워드: OBQ, Hessian, Layer-wise Quantization, Cholesky, Block Update) 2차 최적화(OBQ)를 layer-wise로 근사하여 계산 비용을 크게 줄인다. 파이프라인: (1) 가중치 행렬 → Hessian 계산 → 역행렬 근사 (Cholesky) (2) 열 단위 순서로 양자화 → 잔차 오차 → 나머지 열에 보정 (3) 전체 레이어 반복 → 양자화된 모델.",
+        "limitation": "Hessian 계산에 캘리브레이션 데이터가 필요하며, 데이터 분포에 따라 성능 편차가 발생한다."
+      }
+    ],
+    "sub_page_url": null
+  },
+  "지식 증류": {
+    "summary": "대형 모델의 지식을 소형 모델로 전달하는 distillation 기법 연구.",
+    "papers": [
+      {
+        "filename": "distilbert.pdf",
+        "title": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+        "problem": "BERT는 높은 성능을 제공하지만 파라미터 수가 많아 추론 지연과 메모리 비용이 크다.",
+        "methodology": "DistilBERT를 제안한다. (키워드: Knowledge Distillation, Soft Targets, Cosine Similarity Loss, Triple Loss, Teacher-Student) BERT의 지식을 40% 작은 학생 모델로 전달하기 위해 소프트 레이블·히든 스테이트·코사인 유사도 손실을 결합한다. 파이프라인: (1) Teacher BERT 출력 → Soft probability distribution (2) Student 모델 → 동일 입력 처리 → 예측 분포 (3) Distillation loss + MLM loss + Cosine loss 결합 → 학생 모델 학습.",
+        "limitation": "교사 모델 크기에 비례하여 학습 비용이 증가하며, NSP 태스크 제거로 일부 downstream 성능이 저하된다."
+      }
+    ],
+    "sub_page_url": null
+  },
+  "효율적 어텐션 메커니즘": {
+    "summary": "Sparse Attention, IO-aware 블록 계산 등으로 어텐션 복잡도를 줄이는 방법론.",
+    "papers": [
+      {
+        "filename": "longformer.pdf",
+        "title": "Longformer: The Long-Document Transformer",
+        "problem": "기존 Transformer의 Self-Attention은 O(n²) 복잡도로 긴 문서(수천 토큰) 처리가 불가능하다.",
+        "methodology": "Longformer를 제안한다. (키워드: Sliding Window Attention, Global Attention, Dilated Attention, Sparse Attention, Local Context) 슬라이딩 윈도우 로컬 어텐션과 특정 토큰에 대한 전역 어텐션을 결합하여 O(n) 복잡도를 달성한다. 파이프라인: (1) 입력 시퀀스 → 각 토큰에 고정 크기 윈도우 어텐션 적용 (2) [CLS], 질의 토큰 등 → 전역 어텐션 적용 (3) 두 어텐션 결합 → 문맥화 표현 → 태스크별 출력.",
+        "limitation": "슬라이딩 윈도우 크기 선택이 태스크에 따라 다르며, 전역 어텐션 토큰 선택에 도메인 지식이 필요하다."
+      },
+      {
+        "filename": "flashattention.pdf",
+        "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+        "problem": "표준 Self-Attention 구현은 HBM 접근 횟수가 많아 GPU 메모리 대역폭을 병목으로 만들고, 시퀀스 길이에 비례하는 메모리를 요구한다.",
+        "methodology": "FlashAttention을 제안한다. (키워드: IO-Awareness, Tiling, SRAM, Online Softmax, Recomputation, HBM) 어텐션 계산을 블록 단위로 분할하여 SRAM 내에서 완결함으로써 HBM 접근을 최소화한다. 파이프라인: (1) Q, K, V → 블록 단위 분할 (2) 각 블록 → SRAM 로드 → 부분 소프트맥스 및 어텐션 계산 (3) 수치 안정화된 온라인 softmax로 블록 결과 누적 (4) 최종 O 행렬 출력.",
+        "limitation": "CUDA 커널을 직접 구현해야 하므로 새 하드웨어/프레임워크로의 이식 비용이 크다."
+      }
+    ],
+    "sub_page_url": null
+  },
+  "대조 학습 기반 표현": {
+    "summary": "Positive/Negative 쌍 대조 학습으로 멀티모달 의미 공간을 구축하는 방법론.",
+    "papers": [
+      {
+        "filename": "clip.pdf",
+        "title": "Learning Transferable Visual Models From Natural Language Supervision",
+        "problem": "기존 시각 모델은 고정된 카테고리 집합에 의존하여 zero-shot 일반화 능력이 부족하다.",
+        "methodology": "CLIP을 제안한다. (키워드: Contrastive Learning, Image Encoder, Text Encoder, Zero-shot Transfer, Cosine Similarity, Natural Language Supervision) 이미지-텍스트 쌍의 대조 학습으로 공유 임베딩 공간을 구축한다. 파이프라인: (1) 이미지 → ViT/ResNet 인코딩 → 이미지 임베딩 (2) 텍스트 설명 → Transformer 인코딩 → 텍스트 임베딩 (3) 배치 내 이미지-텍스트 유사도 행렬 계산 → 대각선 최대화 대조 손실 (4) 추론 시 텍스트 프롬프트와 이미지 임베딩 유사도 비교 → zero-shot 분류.",
+        "limitation": "대규모 웹 크롤링 데이터 의존으로 사회적 편향이 임베딩 공간에 내재될 수 있다."
+      }
+    ],
+    "sub_page_url": null
+  },
+  "파라미터 효율적 학습": {
+    "summary": "LoRA, 프롬프트 기법 등 소수 파라미터만 학습하거나 추론을 유도하는 방법론.",
+    "papers": [
+      {
+        "filename": "chain_of_thought.pdf",
+        "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+        "problem": "대형 언어 모델은 수학 추론, 상식 추론 등 다단계 사고가 필요한 문제에서 성능이 낮다.",
+        "methodology": "Chain-of-Thought(CoT) 프롬프팅을 제안한다. (키워드: Few-shot Prompting, Intermediate Reasoning Steps, Arithmetic Reasoning, Commonsense Reasoning, Scaling) 답 직전에 풀이 과정을 단계별로 서술하는 예시를 프롬프트에 포함하여 모델이 추론 체인을 모방하도록 유도한다. 파이프라인: (1) 문제 + 풀이 단계 포함 예시 n개 → 프롬프트 구성 (2) 테스트 문제 추가 → LLM 입력 (3) 모델 → 중간 추론 단계 생성 → 최종 답변 출력.",
+        "limitation": "CoT 효과는 100B 이상 대형 모델에서만 안정적으로 나타나며, 예시 구성에 인간 레이블링이 필요하다."
+      },
+      {
+        "filename": "lora.pdf",
+        "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+        "problem": "대형 언어 모델의 전체 파인튜닝은 파라미터 수에 비례하는 GPU 메모리와 스토리지가 필요해 실용적이지 않다.",
+        "methodology": "LoRA를 제안한다. (키워드: Low-Rank Decomposition, Adapter, Frozen Weights, Delta W, Rank r, Scaling Factor α) 기존 가중치를 고정하고 작은 랭크의 행렬 쌍(A, B)만 학습하여 가중치 변화량을 근사한다. 파이프라인: (1) 사전학습 가중치 W 고정 (2) ΔW = BA 형태로 랭크-r 행렬 초기화 (3) 순전파 시 Wx + BAx 계산 (4) BA 행렬만 역전파 업데이트 → 최종 W' = W + BA로 병합 가능.",
+        "limitation": "랭크 r을 레이어별로 동일하게 설정하므로 레이어마다 최적 랭크가 다를 수 있는 점이 고려되지 않는다."
+      }
+    ],
+    "sub_page_url": null
+  }
+};
+        const parentUrl = null;
+        const pageTitle = "";
+        /**
+         * DATA_INJECTION_POINT_END
+         */
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+        let myChart = null;
+        let currentTab = 'problem';
+
+        function initNavigation() {
+            if (parentUrl) {
+                document.getElementById('back-nav').classList.remove('hidden');
+                document.getElementById('back-link').href = parentUrl;
+            }
+            if (pageTitle) {
+                document.getElementById('page-title-text').innerText = pageTitle;
+                document.title = pageTitle + ' — Research Map';
+            }
+        }
+
+        function initDashboard() {
+            document.getElementById('total-papers-counter').innerText = researchResults.length;
+            initNavigation();
+            renderChart();
+
+            // Default select the first cluster if exists
+            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
+            const groupNames = Object.keys(groups);
+            if (groupNames.length > 0) {
+                updateDetailView(groupNames[0]);
+            }
+        }
+
+        function switchTab(type) {
+            currentTab = type;
+            document.getElementById('tab-problem').classList.toggle('tab-active', type === 'problem');
+            document.getElementById('tab-methodology').classList.toggle('tab-active', type === 'methodology');
+
+            // Style update for inactive tab
+            const inactiveId = type === 'problem' ? 'tab-methodology' : 'tab-problem';
+            document.getElementById(inactiveId).classList.add('text-slate-400');
+            document.getElementById(inactiveId).classList.remove('text-slate-900');
+
+            renderChart();
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('insightChart').getContext('2d');
+            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
+            const labels = Object.keys(groups);
+            const dataCounts = labels.map(label => groups[label].papers.length);
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Number of Papers',
+                        data: dataCounts,
+                        backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                        hoverBackgroundColor: '#f97316',
+                        borderRadius: 12,
+                        barThickness: 32
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // Horizontal bars for better readability
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            cornerRadius: 8
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { stepSize: 1, font: { weight: 'bold' } }
+                        },
+                        y: {
+                            grid: { borderDash: [5, 5], color: '#e2e8f0' },
+                            ticks: {
+                                font: { size: 12, weight: '600' },
+                                color: '#64748b',
+                                callback: function (value) {
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 20 ? label.substr(0, 20) + '...' : label;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (evt, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const clusterName = labels[index];
+                            updateDetailView(clusterName);
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateDetailView(clusterName) {
+            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
+            const cluster = groups[clusterName];
+
+            // Update Summary Card
+            document.getElementById('selected-cluster-name').innerText = clusterName;
+            document.getElementById('selected-cluster-summary').innerText = cluster.summary || "이 연구 영역에 속한 논문들의 흐름입니다.";
+
+            // Sub-cluster drill-down link
+            const subLinkEl = document.getElementById('sub-cluster-link');
+            if (cluster.sub_page_url) {
+                subLinkEl.innerHTML = `<a href="${cluster.sub_page_url}" class="inline-flex items-center gap-2 text-white/80 hover:text-white text-sm font-bold transition-colors border border-white/30 hover:border-white/60 rounded-xl px-4 py-2 hover:bg-white/10">세부 클러스터 보기 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></a>`;
+            } else {
+                subLinkEl.innerHTML = '';
+            }
+
+            // Build Detailed Paper Cards
+            const container = document.getElementById('paper-list-container');
+            container.innerHTML = '';
+
+            cluster.papers.forEach(paper => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-8 rounded-[2rem] card-shadow border border-slate-100 space-y-4 animate-slide-up hover:border-orange-200 transition-colors cursor-default';
+                card.innerHTML = `
+                    <div class="flex flex-col space-y-1">
+                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 self-start px-2 py-0.5 rounded-md">${escapeHTML(paper.filename)}</span>
+                        <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${escapeHTML(paper.title)}</h6>
+                    </div>
+                    <div class="space-y-4 pt-2">
+                        <div class="bg-slate-50 p-4 rounded-2xl">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Research Problem (해결하려는 문제)</p>
+                            <p class="text-sm text-slate-600 leading-relaxed">${escapeHTML(paper.problem)}</p>
+                        </div>
+                        <div class="bg-orange-50/50 p-4 rounded-2xl">
+                            <p class="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 italic">Key Methodology (해결 방법)</p>
+                            <p class="text-sm text-slate-700 leading-relaxed font-medium">${escapeHTML(paper.methodology)}</p>
+                        </div>
+                        ${paper.limitation ? `
+                        <div class="p-4 border border-slate-100 rounded-2xl">
+                            <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 italic text-right">Trade-off / Limitation (한계점)</p>
+                            <p class="text-xs text-slate-400 leading-relaxed text-right">${escapeHTML(paper.limitation)}</p>
+                        </div>` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // Focus on Detail Section
+            document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Initialize display
+        if (researchResults.length > 0) {
+            initDashboard();
+        } else {
+            console.warn("No data injected into data points.");
+        }
+    </script>
+</body>
+
+</html>

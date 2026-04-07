@@ -150,3 +150,11 @@ python skills/Abstract_Area/scripts/generate_index.py {sub_dir} --parent-url ../
 ```bash
 python skills/Abstract_Area/scripts/generate_index.py [output_dir]
 ```
+
+### 6단계: 트리 시각화 생성
+
+모든 페이지 생성이 완료된 후, 전체 클러스터 계층을 방사형 트리로 시각화한 `tree.html`을 생성합니다.
+
+```bash
+python skills/Abstract_Area/scripts/generate_tree.py [output_dir]
+```

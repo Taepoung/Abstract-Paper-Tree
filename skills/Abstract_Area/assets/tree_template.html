@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Cluster Tree</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .accent-gradient { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
+        .tab-active { color: #f97316; border-bottom: 3px solid #f97316; font-weight: 800; }
+        #tree-svg { cursor: grab; }
+        #tree-svg:active { cursor: grabbing; }
+        .node.has-link { cursor: pointer; }
+        .node circle { transition: r 0.15s ease; }
+        .node:hover circle { filter: drop-shadow(0 0 6px rgba(249,115,22,0.5)); }
+        .link { fill: none; stroke: #e2e8f0; stroke-width: 1.5px; }
+        @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+</head>
+
+<body class="min-h-screen p-6 md:p-12">
+    <div class="max-w-7xl mx-auto space-y-8">
+
+        <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-slate-200 pb-8">
+            <div class="space-y-1">
+                <h1 class="text-4xl font-extrabold tracking-tighter text-slate-900 flex items-center gap-3">
+                    <span class="w-10 h-10 accent-gradient rounded-xl shadow-lg shadow-orange-200"></span>
+                    Cluster Tree
+                </h1>
+                <p class="text-slate-400 font-medium tracking-tight">Radial Hierarchy of Research Clusters</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <nav class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+                    <button onclick="switchTab('problem')" id="tab-problem"
+                        class="px-8 py-3 rounded-xl text-sm font-bold transition-all tab-active">Problem Clusters</button>
+                    <button onclick="switchTab('method')" id="tab-method"
+                        class="px-8 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-600 transition-all">Methodology Clusters</button>
+                </nav>
+                <a href="index.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    Dashboard
+                </a>
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+            <div class="flex-grow bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
+                <svg id="tree-svg" width="100%" height="700"></svg>
+            </div>
+            <div class="lg:w-72 flex-shrink-0 space-y-4">
+                <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-extrabold text-slate-900" id="total-count">—</p>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Papers Analyzed</p>
+                    </div>
+                </div>
+                <div id="detail-card" class="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-[2rem] text-white card-shadow shadow-orange-100 space-y-3 animate-slide-up">
+                    <p class="text-xs font-bold uppercase tracking-widest text-orange-200">노드를 선택하세요</p>
+                    <h5 class="text-base font-extrabold leading-snug" id="detail-name">—</h5>
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl font-extrabold" id="detail-count">—</span>
+                        <span class="text-orange-200 text-sm font-semibold" id="detail-count-label">papers</span>
+                    </div>
+                    <p class="text-orange-100 text-xs leading-relaxed" id="detail-summary"></p>
+                    <a id="detail-link" href="#" class="hidden mt-1 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-bold border border-white/30 hover:border-white/60 rounded-xl px-3 py-1.5 hover:bg-white/10 transition-all">
+                        대시보드 열기
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 space-y-3">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Legend</p>
+                    <div class="space-y-2.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-5 h-5 rounded-full bg-orange-500 flex-shrink-0"></div>
+                            <span class="text-xs font-semibold text-slate-600">Root (전체 논문)</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-4 h-4 rounded-full bg-white border-2 border-orange-400 flex-shrink-0"></div>
+                            <span class="text-xs font-semibold text-slate-600">클러스터</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-2.5 h-2.5 rounded-full bg-orange-100 border border-orange-300 flex-shrink-0 ml-0.5"></div>
+                            <span class="text-xs font-semibold text-slate-600">논문 (리프)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-center text-xs text-slate-300 pb-8 italic">※ 노드를 클릭하면 해당 클러스터의 대시보드로 이동합니다. 드래그로 이동, 스크롤로 줌.</p>
+    </div>
+
+    <script>
+        /**
+         * DATA_INJECTION_POINT_START
+         */
+        const problemTreeData = {};
+        const methodTreeData = {};
+        /**
+         * DATA_INJECTION_POINT_END
+         */
+
+        const svgEl = document.getElementById('tree-svg');
+        const width = svgEl.parentElement.clientWidth || 720;
+        const height = 700;
+
+        const svg = d3.select('#tree-svg').attr('width', width).attr('height', height);
+        const zoomGroup = svg.append('g');
+        const zoom = d3.zoom().scaleExtent([0.25, 4]).on('zoom', e => zoomGroup.attr('transform', e.transform));
+        svg.call(zoom);
+
+        function switchTab(type) {
+            document.getElementById('tab-problem').classList.toggle('tab-active', type === 'problem');
+            document.getElementById('tab-method').classList.toggle('tab-active', type === 'method');
+            document.getElementById('tab-problem').classList.toggle('text-slate-400', type !== 'problem');
+            document.getElementById('tab-method').classList.toggle('text-slate-400', type !== 'method');
+            renderTree(type === 'problem' ? problemTreeData : methodTreeData);
+        }
+
+        function nodeRadius(d) {
+            if (d.depth === 0) return 24;
+            if (d.data.is_paper) return 4;
+            return d.children?.length ? 9 : 7;
+        }
+
+        // Polar → Cartesian
+        function toXY(d) {
+            return [d.y * Math.sin(d.x), -d.y * Math.cos(d.x)];
+        }
+
+        function renderTree(data) {
+            zoomGroup.selectAll('*').remove();
+            svg.call(zoom.transform, d3.zoomIdentity);
+            if (!data || !data.children?.length) return;
+
+            document.getElementById('total-count').innerText = data.count ?? '—';
+
+            const cx = width / 2, cy = height / 2;
+            const radius = Math.min(width, height) / 2 - 180;
+            const g = zoomGroup.append('g').attr('transform', `translate(${cx},${cy})`);
+
+            const tree = d3.tree()
+                .size([2 * Math.PI, radius])
+                .separation((a, b) => (a.parent === b.parent ? 2 : 4) / Math.max(a.depth, 1));
+
+            const root = d3.hierarchy(data);
+            tree(root);
+
+            // Fix level radii so rings don't crowd together
+            const levelR = [0, 130, 260, 400, 540];
+            root.each(d => { if (d.depth > 0) d.y = levelR[Math.min(d.depth, levelR.length - 1)]; });
+
+            // Links
+            g.append('g')
+                .selectAll('path').data(root.links()).join('path')
+                .attr('class', 'link')
+                .attr('d', d3.linkRadial().angle(d => d.x).radius(d => d.y));
+
+            // Nodes — positioned in Cartesian (no rotation → all labels stay horizontal)
+            const node = g.append('g')
+                .selectAll('g').data(root.descendants()).join('g')
+                .attr('class', d => `node${d.data.url ? ' has-link' : ''}`)
+                .attr('transform', d => {
+                    const [x, y] = toXY(d);
+                    return `translate(${x},${y})`;
+                })
+                .on('mouseover', function(_, d) {
+                    d3.select(this).select('circle').attr('r', nodeRadius(d) * 1.4);
+                    if (d.data.is_paper) d3.select(this).select('.paper-label').attr('opacity', 1);
+                    showDetail(d.data);
+                })
+                .on('mouseout', function(_, d) {
+                    d3.select(this).select('circle').attr('r', nodeRadius(d));
+                    if (d.data.is_paper) d3.select(this).select('.paper-label').attr('opacity', 0);
+                })
+                .on('click', (_, d) => { if (d.data.url) window.location.href = d.data.url; });
+
+            // Circles
+            node.append('circle')
+                .attr('r', nodeRadius)
+                .attr('fill', d => {
+                    if (d.depth === 0) return '#f97316';
+                    if (d.data.is_paper) return '#fff7ed';
+                    return d.children?.length ? '#ffffff' : '#fff7ed';
+                })
+                .attr('stroke', d => d.depth === 0 ? 'none' : d.data.is_paper ? '#fdba74' : '#f97316')
+                .attr('stroke-width', d => d.depth === 0 ? 0 : 1.5);
+
+            // Root text inside circle
+            node.filter(d => d.depth === 0).append('text')
+                .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+                .attr('font-size', '10px').attr('font-weight', '800').attr('fill', '#fff')
+                .attr('pointer-events', 'none').text('ALL');
+
+            // Labels — always horizontal boxes, positioned radially outward
+            node.filter(d => d.depth > 0).each(function(d) {
+                const [cx, cy] = toXY(d);
+                const dist = Math.sqrt(cx * cx + cy * cy) || 1;
+                const ux = cx / dist, uy = cy / dist; // outward unit vector
+
+                const r = nodeRadius(d);
+                const gap = d.data.is_paper ? 5 : 7;
+                const ax = ux * (r + gap);
+                const ay = uy * (r + gap);
+
+                const isPaper = !!d.data.is_paper;
+
+                const grp = d3.select(this);
+
+                if (isPaper) {
+                    // Two-line box: [filename] + title
+                    const fnRaw = d.data.filename || '';
+                    const fnLabel = fnRaw.length > 20 ? fnRaw.substr(0, 20) + '…' : fnRaw;
+                    const maxTitle = 30;
+                    const titleLabel = d.data.name.length > maxTitle
+                        ? d.data.name.substr(0, maxTitle) + '…'
+                        : d.data.name;
+
+                    const charW = 5.0;
+                    const longerLen = Math.max(fnLabel.length, titleLabel.length);
+                    const boxW = Math.min(longerLen * charW + 20, 180);
+                    const boxH = 38;
+
+                    let boxX;
+                    if (ux > 0.2)       boxX = ax;
+                    else if (ux < -0.2) boxX = ax - boxW;
+                    else                boxX = ax - boxW / 2;
+                    const boxY = ay - boxH / 2;
+
+                    grp.append('rect')
+                        .attr('x', boxX).attr('y', boxY)
+                        .attr('width', boxW).attr('height', boxH)
+                        .attr('rx', 6)
+                        .attr('fill', '#fff7ed')
+                        .attr('stroke', '#fdba74')
+                        .attr('stroke-width', 1);
+
+                    // Line 1: [filename] in orange bold
+                    grp.append('text')
+                        .attr('x', boxX + boxW / 2).attr('y', boxY + 13)
+                        .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+                        .attr('font-size', '8px').attr('font-weight', '700')
+                        .attr('fill', '#ea580c')
+                        .attr('pointer-events', 'none')
+                        .text(`[${fnLabel}]`);
+
+                    // Line 2: title in dark
+                    grp.append('text')
+                        .attr('x', boxX + boxW / 2).attr('y', boxY + 27)
+                        .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+                        .attr('font-size', '9px').attr('font-weight', '400')
+                        .attr('fill', '#92400e')
+                        .attr('pointer-events', 'none')
+                        .text(titleLabel);
+                } else {
+                    // Single-line cluster label
+                    const maxLen = 20;
+                    const label = d.data.name.length > maxLen
+                        ? d.data.name.substr(0, maxLen) + '…'
+                        : d.data.name;
+
+                    const charW = 6.0;
+                    const boxH = 22;
+                    const boxW = Math.min(label.length * charW + 20, 140);
+
+                    let boxX;
+                    if (ux > 0.2)       boxX = ax;
+                    else if (ux < -0.2) boxX = ax - boxW;
+                    else                boxX = ax - boxW / 2;
+                    const boxY = ay - boxH / 2;
+
+                    grp.append('rect')
+                        .attr('x', boxX).attr('y', boxY)
+                        .attr('width', boxW).attr('height', boxH)
+                        .attr('rx', 6)
+                        .attr('fill', '#f8fafc')
+                        .attr('stroke', '#e2e8f0')
+                        .attr('stroke-width', 1);
+
+                    grp.append('text')
+                        .attr('x', boxX + boxW / 2).attr('y', boxY + boxH / 2)
+                        .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+                        .attr('font-size', '10px').attr('font-weight', '700')
+                        .attr('fill', '#334155')
+                        .attr('pointer-events', 'none')
+                        .text(label);
+                }
+            });
+        }
+
+        function showDetail(data) {
+            document.getElementById('detail-name').innerText = data.name;
+            document.getElementById('detail-count').innerText = data.is_paper ? '논문' : (data.count ?? '—');
+            document.getElementById('detail-count-label').innerText = data.is_paper ? '' : 'papers';
+            document.getElementById('detail-summary').innerText = data.summary || '';
+            const linkEl = document.getElementById('detail-link');
+            if (data.url) { linkEl.href = data.url; linkEl.classList.remove('hidden'); }
+            else { linkEl.classList.add('hidden'); }
+        }
+
+        renderTree(problemTreeData);
+    </script>
+</body>
+</html>
