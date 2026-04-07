@@ -93,7 +93,7 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-orange-100 border border-orange-300 flex-shrink-0 ml-0.5"></div>
-                            <span class="text-xs font-semibold text-slate-600">논문 (리프)</span>
+                            <span class="text-xs font-semibold text-slate-600">논문 (호버로 확인)</span>
                         </div>
                     </div>
                 </div>
@@ -132,7 +132,7 @@
         function nodeRadius(d) {
             if (d.depth === 0) return 24;
             if (d.data.is_paper) return 4;
-            return d.children?.length ? 9 : 7;
+            return d.children?.length ? 10 : 8;
         }
 
         // Polar → Cartesian
@@ -168,10 +168,10 @@
                 .attr('class', 'link')
                 .attr('d', d3.linkRadial().angle(d => d.x).radius(d => d.y));
 
-            // Nodes — positioned in Cartesian (no rotation → all labels stay horizontal)
+            // Nodes
             const node = g.append('g')
                 .selectAll('g').data(root.descendants()).join('g')
-                .attr('class', d => `node${d.data.url ? ' has-link' : ''}`)
+                .attr('class', d => `node${(!d.data.is_paper && d.data.url) ? ' has-link' : ''}`)
                 .attr('transform', d => {
                     const [x, y] = toXY(d);
                     return `translate(${x},${y})`;
@@ -185,7 +185,7 @@
                     d3.select(this).select('circle').attr('r', nodeRadius(d));
                     if (d.data.is_paper) d3.select(this).select('.paper-label').attr('opacity', 0);
                 })
-                .on('click', (_, d) => { if (d.data.url) window.location.href = d.data.url; });
+                .on('click', (_, d) => { if (!d.data.is_paper && d.data.url) window.location.href = d.data.url + '#cluster-distribution'; });
 
             // Circles
             node.append('circle')
@@ -204,33 +204,26 @@
                 .attr('font-size', '10px').attr('font-weight', '800').attr('fill', '#fff')
                 .attr('pointer-events', 'none').text('ALL');
 
-            // Labels — always horizontal boxes, positioned radially outward
+            // Labels
             node.filter(d => d.depth > 0).each(function(d) {
                 const [cx, cy] = toXY(d);
                 const dist = Math.sqrt(cx * cx + cy * cy) || 1;
-                const ux = cx / dist, uy = cy / dist; // outward unit vector
+                const ux = cx / dist, uy = cy / dist;
 
                 const r = nodeRadius(d);
                 const gap = d.data.is_paper ? 5 : 7;
                 const ax = ux * (r + gap);
                 const ay = uy * (r + gap);
 
-                const isPaper = !!d.data.is_paper;
-
                 const grp = d3.select(this);
 
-                if (isPaper) {
-                    // Two-line box: [filename] + title
-                    const fnRaw = d.data.filename || '';
-                    const fnLabel = fnRaw.length > 20 ? fnRaw.substr(0, 20) + '…' : fnRaw;
-                    const maxTitle = 30;
-                    const titleLabel = d.data.name.length > maxTitle
-                        ? d.data.name.substr(0, maxTitle) + '…'
-                        : d.data.name;
+                if (d.data.is_paper) {
+                    // 논문 리프: 호버 시만 표시
+                    const fnLabel = d.data.filename || '';
+                    const titleLabel = d.data.name;
 
                     const charW = 5.0;
-                    const longerLen = Math.max(fnLabel.length, titleLabel.length);
-                    const boxW = Math.min(longerLen * charW + 20, 180);
+                    const boxW = Math.max(fnLabel.length, titleLabel.length) * charW + 24;
                     const boxH = 38;
 
                     let boxX;
@@ -239,41 +232,36 @@
                     else                boxX = ax - boxW / 2;
                     const boxY = ay - boxH / 2;
 
-                    grp.append('rect')
+                    const labelGrp = grp.append('g').attr('class', 'paper-label').attr('opacity', 0);
+
+                    labelGrp.append('rect')
                         .attr('x', boxX).attr('y', boxY)
                         .attr('width', boxW).attr('height', boxH)
                         .attr('rx', 6)
-                        .attr('fill', '#fff7ed')
-                        .attr('stroke', '#fdba74')
-                        .attr('stroke-width', 1);
+                        .attr('fill', '#fff7ed').attr('stroke', '#fdba74').attr('stroke-width', 1);
 
-                    // Line 1: [filename] in orange bold
-                    grp.append('text')
+                    labelGrp.append('text')
                         .attr('x', boxX + boxW / 2).attr('y', boxY + 13)
                         .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                        .attr('font-size', '8px').attr('font-weight', '700')
-                        .attr('fill', '#ea580c')
-                        .attr('pointer-events', 'none')
-                        .text(`[${fnLabel}]`);
+                        .attr('font-size', '8px').attr('font-weight', '700').attr('fill', '#ea580c')
+                        .attr('pointer-events', 'none').text(`[${fnLabel}]`);
 
-                    // Line 2: title in dark
-                    grp.append('text')
+                    labelGrp.append('text')
                         .attr('x', boxX + boxW / 2).attr('y', boxY + 27)
                         .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                        .attr('font-size', '9px').attr('font-weight', '400')
-                        .attr('fill', '#92400e')
-                        .attr('pointer-events', 'none')
-                        .text(titleLabel);
+                        .attr('font-size', '9px').attr('font-weight', '400').attr('fill', '#92400e')
+                        .attr('pointer-events', 'none').text(titleLabel);
                 } else {
-                    // Single-line cluster label
-                    const maxLen = 20;
+                    // 클러스터 노드: 항상 표시, 이름 + (논문수)
+                    const maxLen = 22;
                     const label = d.data.name.length > maxLen
-                        ? d.data.name.substr(0, maxLen) + '…'
-                        : d.data.name;
+                        ? d.data.name.substr(0, maxLen) + '…' : d.data.name;
+                    const countLabel = `(${d.data.count})`;
+                    const fullLabel = label + ' ' + countLabel;
 
-                    const charW = 6.0;
-                    const boxH = 22;
-                    const boxW = Math.min(label.length * charW + 20, 140);
+                    const charW = 5.8;
+                    const boxH = 24;
+                    const boxW = Math.min(fullLabel.length * charW + 20, 180);
 
                     let boxX;
                     if (ux > 0.2)       boxX = ax;
@@ -285,28 +273,33 @@
                         .attr('x', boxX).attr('y', boxY)
                         .attr('width', boxW).attr('height', boxH)
                         .attr('rx', 6)
-                        .attr('fill', '#f8fafc')
-                        .attr('stroke', '#e2e8f0')
+                        .attr('fill', d.children?.some(c => !c.data.is_paper) ? '#f8fafc' : '#fff7ed')
+                        .attr('stroke', d.children?.some(c => !c.data.is_paper) ? '#e2e8f0' : '#fdba74')
                         .attr('stroke-width', 1);
 
-                    grp.append('text')
+                    const txt = grp.append('text')
                         .attr('x', boxX + boxW / 2).attr('y', boxY + boxH / 2)
                         .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                        .attr('font-size', '10px').attr('font-weight', '700')
-                        .attr('fill', '#334155')
-                        .attr('pointer-events', 'none')
-                        .text(label);
+                        .attr('font-size', '10px').attr('pointer-events', 'none');
+
+                    txt.append('tspan').attr('font-weight', '700').attr('fill', '#334155').text(label + ' ');
+                    txt.append('tspan').attr('font-weight', '600').attr('fill', '#f97316').text(countLabel);
                 }
             });
         }
 
         function showDetail(data) {
             document.getElementById('detail-name').innerText = data.name;
-            document.getElementById('detail-count').innerText = data.is_paper ? '논문' : (data.count ?? '—');
-            document.getElementById('detail-count-label').innerText = data.is_paper ? '' : 'papers';
+            if (data.is_paper) {
+                document.getElementById('detail-count').innerText = '논문';
+                document.getElementById('detail-count-label').innerText = data.filename || '';
+            } else {
+                document.getElementById('detail-count').innerText = data.count ?? '—';
+                document.getElementById('detail-count-label').innerText = 'papers';
+            }
             document.getElementById('detail-summary').innerText = data.summary || '';
             const linkEl = document.getElementById('detail-link');
-            if (data.url) { linkEl.href = data.url; linkEl.classList.remove('hidden'); }
+            if (data.url) { linkEl.href = data.url + '#cluster-distribution'; linkEl.classList.remove('hidden'); }
             else { linkEl.classList.add('hidden'); }
         }
 

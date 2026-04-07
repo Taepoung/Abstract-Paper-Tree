@@ -15,17 +15,19 @@ def sanitize_dirname(name):
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def generate_dashboard(output_dir, parent_url=None, page_title=None):
+def generate_dashboard(output_dir, parent_url=None, page_title=None, tree_url=None):
     results_file = os.path.join(output_dir, 'results.jsonl')
     problem_file = os.path.join(output_dir, 'problem.json')
     method_file = os.path.join(output_dir, 'method.json')
     template_path = os.path.join(SCRIPT_DIR, '..', 'assets', 'template.html')
     output_file = os.path.join(output_dir, 'index.html')
 
-    for f in [problem_file, method_file, template_path]:
-        if not os.path.exists(f):
-            print(f"Error: '{f}' not found.")
-            sys.exit(1)
+    if not os.path.exists(template_path):
+        print(f"Error: '{template_path}' not found.")
+        sys.exit(1)
+    if not os.path.exists(problem_file) and not os.path.exists(method_file):
+        print(f"Error: Neither problem.json nor method.json found in '{output_dir}'.")
+        sys.exit(1)
 
     # results.jsonl 우선, 없으면 results/*.json fallback
     results_map = {}
@@ -54,10 +56,14 @@ def generate_dashboard(output_dir, parent_url=None, page_title=None):
         print("Error: No paper results found.")
         sys.exit(1)
 
-    with open(problem_file, 'r', encoding='utf-8') as f:
-        problem_clusters = json.load(f)
-    with open(method_file, 'r', encoding='utf-8') as f:
-        method_clusters = json.load(f)
+    problem_clusters = {}
+    if os.path.exists(problem_file):
+        with open(problem_file, 'r', encoding='utf-8') as f:
+            problem_clusters = json.load(f)
+    method_clusters = {}
+    if os.path.exists(method_file):
+        with open(method_file, 'r', encoding='utf-8') as f:
+            method_clusters = json.load(f)
 
     def join_paper_details(clusters):
         joined = {}
@@ -95,6 +101,9 @@ def generate_dashboard(output_dir, parent_url=None, page_title=None):
     ).replace(
         'const pageTitle = "";',
         f'const pageTitle = {json.dumps(page_title or "Research Map")};'
+    ).replace(
+        'const treeUrl = "tree.html";',
+        f'const treeUrl = {json.dumps(tree_url or "tree.html")};'
     )
 
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -108,9 +117,10 @@ if __name__ == "__main__":
     parser.add_argument('output_dir', nargs='?', default='.')
     parser.add_argument('--parent-url', default=None, dest='parent_url')
     parser.add_argument('--page-title', default=None, dest='page_title')
+    parser.add_argument('--tree-url', default=None, dest='tree_url')
     args = parser.parse_args()
 
     if not os.path.isdir(args.output_dir):
         print(f"Error: '{args.output_dir}' is not a valid directory.")
         sys.exit(1)
-    generate_dashboard(args.output_dir, parent_url=args.parent_url, page_title=args.page_title)
+    generate_dashboard(args.output_dir, parent_url=args.parent_url, page_title=args.page_title, tree_url=args.tree_url)

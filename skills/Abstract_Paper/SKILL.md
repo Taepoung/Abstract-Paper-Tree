@@ -1,7 +1,7 @@
 ---
 name: Abstract-Paper
 description: PDF 형식의 개별 학술 논문을 분석하여 핵심 연구 문제, 해결 접근 방식, 논리적 한계점을 정밀하게 추출합니다. 분석 대상인 PDF 논문의 파일명을 인자로 받습니다. 사용자가 특정 논문의 분석이나 핵심 내용 요약을 요청할 때, 또는 학술 데이터베이스 구축을 위해 개별 논문의 구조화된 데이터가 필요할 때 트리거됩니다. 추출된 데이터는 results/ 디렉토리에 개별 JSON 파일로 저장되어 대규모 연구 동향 분석의 기초 자료로 활용됩니다.
-argument-hint: 논문 파일 이름 [언어(default:korean)]
+argument-hint: "논문 파일 이름 [언어(default:korean)]"
 ---
 
 # Abstract-Paper
@@ -19,15 +19,18 @@ argument-hint: 논문 파일 이름 [언어(default:korean)]
 python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 ```
 
-스크립트는 본문(References 이전)과 Appendix를 분리하여 아래 파일로 저장합니다.
-- `/tmp/paper_main.txt` — 본문
-- `/tmp/paper_appendix.txt` — Appendix (없으면 빈 파일)
+스크립트는 본문(References 이전)과 Appendix를 분리하여 시스템 임시 디렉토리에 저장합니다.
+- `{tmpdir}/paper_main.txt` — 본문
+- `{tmpdir}/paper_appendix.txt` — Appendix (없으면 빈 파일)
+
+(`{tmpdir}`은 OS에 따라 `/tmp` 또는 `%TEMP%` 등)
 
 이후 두 파일을 읽어 내용 분석에 사용합니다.
 
 ```bash
-cat /tmp/paper_main.txt
-cat /tmp/paper_appendix.txt
+python -c "import tempfile; t=tempfile.gettempdir(); print(f'Main: {t}/paper_main.txt'); print(f'Appendix: {t}/paper_appendix.txt')"
+cat "$(python -c 'import tempfile;print(tempfile.gettempdir())')"/paper_main.txt
+cat "$(python -c 'import tempfile;print(tempfile.gettempdir())')"/paper_appendix.txt
 ```
 
 2.  **내용 분석**:

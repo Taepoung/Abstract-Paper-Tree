@@ -73,17 +73,23 @@
                 </h1>
                 <p class="text-slate-400 font-medium tracking-tight">Clustered Academic Insights & Trend Analytics</p>
             </div>
-            <nav class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-4">
+            <a id="tree-link" href="tree.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Tree View
+            </a>
+            <nav id="cluster-tabs" class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
                 <button onclick="switchTab('problem')" id="tab-problem"
                     class="px-8 py-3 rounded-xl text-sm font-bold transition-all tab-active">Problem Clusters</button>
                 <button onclick="switchTab('methodology')" id="tab-methodology"
                     class="px-8 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-600 transition-all">Methodology
                     Clusters</button>
             </nav>
+            </div>
         </header>
 
         <!-- Main Visualization Section -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <main id="cluster-distribution" class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <!-- Chart Side -->
             <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 space-y-6">
                 <div class="flex items-center justify-between">
@@ -92,7 +98,7 @@
                         class="text-xs font-bold text-orange-500 uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-full">Interactive
                         Chart</span>
                 </div>
-                <div class="relative h-[400px]">
+                <div class="relative" id="chart-container">
                     <canvas id="insightChart"></canvas>
                 </div>
                 <p class="text-xs text-slate-400 italic text-center">※ 바를 클릭하여 해당 클러스터의 상세 논문 리스트를 확인하세요.</p>
@@ -128,16 +134,11 @@
         <!-- Detailed Paper List (Drill-down) -->
         <section id="detail-section" class="space-y-8 pb-20">
             <div class="flex items-center gap-4 px-4">
-                <h3 class="text-2xl font-bold text-slate-800">Papers in Cluster</h3>
+                <h3 class="text-2xl font-bold text-slate-800">All Papers</h3>
                 <div class="h-1 flex-grow bg-slate-100 rounded-full"></div>
             </div>
 
             <div id="paper-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Detailed Cards will be injected here -->
-                <div
-                    class="md:col-span-2 text-center py-20 text-slate-300 font-medium italic bg-white/50 rounded-3xl border-2 border-dashed border-slate-100">
-                    분석 결과를 보려면 차트에서 그룹을 선택하세요.
-                </div>
             </div>
         </section>
     </div>
@@ -152,6 +153,7 @@
         const methodologyGroups = {};
         const parentUrl = null;
         const pageTitle = "";
+        const treeUrl = "tree.html";
         /**
          * DATA_INJECTION_POINT_END
          */
@@ -170,10 +172,14 @@
             if (parentUrl) {
                 document.getElementById('back-nav').classList.remove('hidden');
                 document.getElementById('back-link').href = parentUrl;
+                document.getElementById('cluster-tabs').classList.add('hidden');
             }
             if (pageTitle) {
                 document.getElementById('page-title-text').innerText = pageTitle;
                 document.title = pageTitle + ' — Research Map';
+            }
+            if (treeUrl) {
+                document.getElementById('tree-link').href = treeUrl;
             }
         }
 
@@ -181,13 +187,7 @@
             document.getElementById('total-papers-counter').innerText = researchResults.length;
             initNavigation();
             renderChart();
-
-            // Default select the first cluster if exists
-            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
-            const groupNames = Object.keys(groups);
-            if (groupNames.length > 0) {
-                updateDetailView(groupNames[0]);
-            }
+            showAllPapers();
         }
 
         function switchTab(type) {
@@ -201,6 +201,7 @@
             document.getElementById(inactiveId).classList.remove('text-slate-900');
 
             renderChart();
+            showAllPapers();
         }
 
         function renderChart() {
@@ -208,6 +209,9 @@
             const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
             const labels = Object.keys(groups);
             const dataCounts = labels.map(label => groups[label].papers.length);
+
+            const chartH = Math.max(250, labels.length * 50);
+            document.getElementById('chart-container').style.height = chartH + 'px';
 
             if (myChart) myChart.destroy();
 
@@ -265,6 +269,59 @@
             });
         }
 
+        function buildPaperCard(paper) {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-8 rounded-[2rem] card-shadow border border-slate-100 space-y-4 animate-slide-up hover:border-orange-200 transition-colors cursor-default';
+            card.innerHTML = `
+                <div class="flex flex-col space-y-1">
+                    <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 self-start px-2 py-0.5 rounded-md">${escapeHTML(paper.filename)}</span>
+                    <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${escapeHTML(paper.title)}</h6>
+                </div>
+                <div class="space-y-4 pt-2">
+                    <div class="bg-slate-50 p-4 rounded-2xl">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Research Problem (해결하려는 문제)</p>
+                        <p class="text-sm text-slate-600 leading-relaxed">${escapeHTML(paper.problem)}</p>
+                    </div>
+                    <div class="bg-orange-50/50 p-4 rounded-2xl">
+                        <p class="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 italic">Key Methodology (해결 방법)</p>
+                        <p class="text-sm text-slate-700 leading-relaxed font-medium">${escapeHTML(paper.methodology)}</p>
+                    </div>
+                    ${paper.limitation ? `
+                    <div class="p-4 border border-slate-100 rounded-2xl">
+                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 italic text-right">Trade-off / Limitation (한계점)</p>
+                        <p class="text-xs text-slate-400 leading-relaxed text-right">${escapeHTML(paper.limitation)}</p>
+                    </div>` : ''}
+                </div>
+            `;
+            return card;
+        }
+
+        function showAllPapers() {
+            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
+            const container = document.getElementById('paper-list-container');
+            container.innerHTML = '';
+
+            for (const [clusterName, cluster] of Object.entries(groups)) {
+                // Cluster heading
+                const heading = document.createElement('div');
+                heading.id = 'cluster-' + clusterName.replace(/\s+/g, '-');
+                heading.className = 'md:col-span-2 flex items-center gap-4 pt-4';
+                heading.innerHTML = `
+                    <h4 class="text-lg font-extrabold text-slate-700 flex-shrink-0">${escapeHTML(clusterName)}</h4>
+                    <div class="h-0.5 flex-grow bg-orange-100 rounded-full"></div>
+                    <span class="text-xs font-bold text-orange-400 bg-orange-50 px-2 py-1 rounded-lg flex-shrink-0">${cluster.papers.length} papers</span>
+                `;
+                container.appendChild(heading);
+
+                cluster.papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
+            }
+
+            // Reset summary card
+            document.getElementById('selected-cluster-name').innerText = 'Cluster Details';
+            document.getElementById('selected-cluster-summary').innerText = '차트의 막대를 클릭하면 해당 영역의 핵심 요약이 여기에 표시됩니다.';
+            document.getElementById('sub-cluster-link').innerHTML = '';
+        }
+
         function updateDetailView(clusterName) {
             const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
             const cluster = groups[clusterName];
@@ -281,39 +338,11 @@
                 subLinkEl.innerHTML = '';
             }
 
-            // Build Detailed Paper Cards
-            const container = document.getElementById('paper-list-container');
-            container.innerHTML = '';
-
-            cluster.papers.forEach(paper => {
-                const card = document.createElement('div');
-                card.className = 'bg-white p-8 rounded-[2rem] card-shadow border border-slate-100 space-y-4 animate-slide-up hover:border-orange-200 transition-colors cursor-default';
-                card.innerHTML = `
-                    <div class="flex flex-col space-y-1">
-                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 self-start px-2 py-0.5 rounded-md">${escapeHTML(paper.filename)}</span>
-                        <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${escapeHTML(paper.title)}</h6>
-                    </div>
-                    <div class="space-y-4 pt-2">
-                        <div class="bg-slate-50 p-4 rounded-2xl">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Research Problem (해결하려는 문제)</p>
-                            <p class="text-sm text-slate-600 leading-relaxed">${escapeHTML(paper.problem)}</p>
-                        </div>
-                        <div class="bg-orange-50/50 p-4 rounded-2xl">
-                            <p class="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 italic">Key Methodology (해결 방법)</p>
-                            <p class="text-sm text-slate-700 leading-relaxed font-medium">${escapeHTML(paper.methodology)}</p>
-                        </div>
-                        ${paper.limitation ? `
-                        <div class="p-4 border border-slate-100 rounded-2xl">
-                            <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 italic text-right">Trade-off / Limitation (한계점)</p>
-                            <p class="text-xs text-slate-400 leading-relaxed text-right">${escapeHTML(paper.limitation)}</p>
-                        </div>` : ''}
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            // Focus on Detail Section
-            document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Scroll to the cluster section
+            const target = document.getElementById('cluster-' + clusterName.replace(/\s+/g, '-'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
         // Initialize display

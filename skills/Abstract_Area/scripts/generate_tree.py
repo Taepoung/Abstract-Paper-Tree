@@ -1,5 +1,6 @@
 """
 problem.json / method.json 계층 구조를 읽어 방사형 트리 시각화 페이지(tree.html)를 생성합니다.
+클러스터 노드 + 논문 리프 노드를 모두 표시합니다.
 
 사용법:
     python skills/Abstract_Area/scripts/generate_tree.py [output_dir]
@@ -43,13 +44,12 @@ def load_results(directory):
     return results_map
 
 
-def paper_leaf(filename, results_map, cluster_url):
+def paper_leaf(filename, results_map):
     """논문 파일명을 리프 노드로 변환."""
     paper = results_map.get(filename, {})
     return {
         'name': paper.get('title', filename),
         'filename': filename,
-        'url': cluster_url,
         'count': 0,
         'summary': paper.get('problem', ''),
         'children': [],
@@ -58,7 +58,7 @@ def paper_leaf(filename, results_map, cluster_url):
 
 
 def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
-    """problem.json 기반 트리 — 리프 클러스터에 논문 노드 추가."""
+    """problem.json 기반 트리 — 클러스터 계층 + 리프 클러스터에 논문 노드."""
     problem_file = os.path.join(output_dir, 'problem.json')
     if not os.path.exists(problem_file):
         return None
@@ -75,7 +75,7 @@ def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
         sub_dir = os.path.join(output_dir, 'clusters', safe_name)
         sub_index = os.path.join(sub_dir, 'index.html')
         sub_url = f'clusters/{safe_name}/index.html'
-        cluster_url = sub_url if os.path.exists(sub_index) else 'index.html'
+        cluster_url = sub_url if os.path.exists(sub_index) else None
 
         node = {
             'name': name,
@@ -92,10 +92,10 @@ def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
             if sub_tree and sub_tree['children']:
                 node['children'] = sub_tree['children']
 
-        # 서브 클러스터 없으면 논문을 리프로
+        # 리프 클러스터(서브 클러스터 없음)면 논문을 리프로 추가
         if not node['children']:
             for fn in info.get('filenames', []):
-                node['children'].append(paper_leaf(fn, results_map, cluster_url))
+                node['children'].append(paper_leaf(fn, results_map))
 
         children.append(node)
 
@@ -108,30 +108,50 @@ def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
     }
 
 
-def build_method_tree(output_dir):
-    """method.json 기반 트리 — 리프 노드에 논문 추가."""
+def build_method_tree(output_dir, root_label='Research Map', results_map=None):
+    """method.json 기반 트리 — 클러스터 계층 + 리프 클러스터에 논문 노드."""
     method_file = os.path.join(output_dir, 'method.json')
     if not os.path.exists(method_file):
         return None
 
-    results_map = load_results(output_dir)
+    if results_map is None:
+        results_map = load_results(output_dir)
 
     with open(method_file, 'r', encoding='utf-8') as f:
         clusters = json.load(f)
 
     children = []
     for name, info in clusters.items():
+        safe_name = sanitize_dirname(name)
+        sub_dir = os.path.join(output_dir, 'clusters', safe_name)
+        sub_index = os.path.join(sub_dir, 'index.html')
+        sub_url = f'clusters/{safe_name}/index.html'
+        cluster_url = sub_url if os.path.exists(sub_index) else None
+
         node = {
             'name': name,
-            'url': 'index.html',
+            'url': cluster_url,
             'count': len(info.get('filenames', [])),
             'summary': info.get('summary', ''),
-            'children': [paper_leaf(fn, results_map, 'index.html') for fn in info.get('filenames', [])],
+            'children': [],
         }
+
+        # 서브 클러스터 재귀
+        if os.path.exists(sub_dir):
+            sub_results = load_results(sub_dir) or results_map
+            sub_tree = build_method_tree(sub_dir, root_label=name, results_map=sub_results)
+            if sub_tree and sub_tree['children']:
+                node['children'] = sub_tree['children']
+
+        # 리프 클러스터면 논문을 리프로 추가
+        if not node['children']:
+            for fn in info.get('filenames', []):
+                node['children'].append(paper_leaf(fn, results_map))
+
         children.append(node)
 
     return {
-        'name': 'Research Map',
+        'name': root_label,
         'url': 'index.html',
         'count': count_papers(output_dir),
         'summary': '',

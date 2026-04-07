@@ -15,6 +15,7 @@ PDF 파일을 파싱하고 본문 / Appendix로 분리합니다.
 """
 
 import glob
+import os
 import re
 import subprocess
 import sys
@@ -69,13 +70,22 @@ def main():
 
     print(pdf)
 
-    subprocess.run(["pdftotext", "-layout", pdf, "/tmp/paper_raw.txt"], check=True)
+    import tempfile
+    tmp_dir = tempfile.gettempdir()
+    raw_path = os.path.join(tmp_dir, "paper_raw.txt")
+    main_path = os.path.join(tmp_dir, "paper_main.txt")
+    app_path = os.path.join(tmp_dir, "paper_appendix.txt")
 
-    raw = open("/tmp/paper_raw.txt", encoding="utf-8", errors="replace").read()
+    subprocess.run(["pdftotext", "-layout", pdf, raw_path], check=True)
+
+    with open(raw_path, encoding="utf-8", errors="replace") as f:
+        raw = f.read()
     main_text, appendix_text = split_text(raw)
 
-    open("/tmp/paper_main.txt", "w", encoding="utf-8").write(main_text)
-    open("/tmp/paper_appendix.txt", "w", encoding="utf-8").write(appendix_text)
+    with open(main_path, "w", encoding="utf-8") as f:
+        f.write(main_text)
+    with open(app_path, "w", encoding="utf-8") as f:
+        f.write(appendix_text)
 
     has_appendix = "있음" if appendix_text else "없음"
     print(f"분리 완료 — 본문: {len(main_text)}자 / Appendix: {has_appendix}")

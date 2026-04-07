@@ -1,7 +1,7 @@
 ---
 name: Abstract-Area
 description: 현재 작업 디렉토리의 모든 PDF 논문들을 병렬 분석하여 핵심 연구 영역과 인사이트를 도출하고, 프리미엄 HTML 대시보드로 시각화합니다. 사용자가 특정 기술이나 분야에 대한 전반적인 연구 흐름이나 해결 과제를 파악하고자 할 때 트리거됩니다.
-argument-hint: [언어(default:korean)] [재귀깊이(default:1)]
+argument-hint: "[언어(default:korean)] [재귀깊이(default:1)]"
 ---
 
 # Abstract-Area
@@ -46,16 +46,7 @@ argument-hint: [언어(default:korean)] [재귀깊이(default:1)]
 `results/` 디렉토리의 모든 개별 JSON 파일을 하나의 `results.jsonl`로 병합합니다.
 
 ```bash
-python -c "
-import json, glob, os
-files = sorted(glob.glob('results/*.json'))
-with open('results.jsonl', 'w', encoding='utf-8') as out:
-    for fp in files:
-        with open(fp, 'r', encoding='utf-8') as f:
-            obj = json.load(f)
-            out.write(json.dumps(obj, ensure_ascii=False) + '\n')
-print(f'Merged {len(files)} papers into results.jsonl')
-"
+python skills/Abstract_Area/scripts/merge_results.py [output_dir]
 ```
 
 #### 3-2. 클러스터링
@@ -89,59 +80,39 @@ python skills/Abstract_Area/scripts/generate_index.py [output_dir]
 
 ### 5단계: 재귀 클러스터링 (depth > 1인 경우)
 
-`depth`가 1보다 크다면, `problem.json`의 **각 클러스터**에 대해 하위 대시보드를 생성합니다.
+`depth`가 1보다 크다면, `problem.json`과 `method.json` **각각의** 클러스터에 대해 하위 대시보드를 생성합니다.
 논문이 **1편뿐인 클러스터는 건너뜁니다.**
+**중요**: 문제(problem) 클러스터를 재귀할 때는 `problem.json`만, 방법(method) 클러스터를 재귀할 때는 `method.json`만 생성합니다. 한 번 시작한 분류 기준을 끝까지 유지합니다.
 
-각 클러스터 C에 대해 아래 순서로 진행합니다.
+`problem.json`의 각 클러스터, 그리고 `method.json`의 각 클러스터에 대해 아래 순서로 진행합니다.
 
 **5-1. 클러스터 이름을 안전한 디렉토리명으로 변환 후 서브 데이터 추출**
 
-```python
-import json, os, re
-
-output_dir = '.'  # 현재 작업 디렉토리
-cluster_name = 'YOUR_CLUSTER_NAME'  # problem.json의 클러스터 이름
-cluster_filenames = ['paper1.pdf', 'paper2.pdf']  # problem.json의 filenames
-
-# 안전한 디렉토리명 생성
-safe_name = re.sub(r'[^\w\s\-]', '', cluster_name, flags=re.UNICODE)
-safe_name = re.sub(r'\s+', '_', safe_name).strip('_')[:60]
-
-# results.jsonl에서 해당 논문만 추출
-sub_results = []
-with open(os.path.join(output_dir, 'results.jsonl'), 'r', encoding='utf-8') as f:
-    for line in f:
-        if line.strip():
-            data = json.loads(line)
-            if data.get('filename') in cluster_filenames:
-                sub_results.append(data)
-
-# 서브 디렉토리에 저장
-sub_dir = os.path.join(output_dir, 'clusters', safe_name)
-os.makedirs(sub_dir, exist_ok=True)
-with open(os.path.join(sub_dir, 'results.jsonl'), 'w', encoding='utf-8') as f:
-    for obj in sub_results:
-        f.write(json.dumps(obj, ensure_ascii=False) + '\n')
-
-print(f"Prepared sub-dir: {sub_dir} ({len(sub_results)} papers)")
+```bash
+python skills/Abstract_Area/scripts/extract_subcluster.py {output_dir} "{cluster_name}" {filename1} {filename2} ...
 ```
 
 **5-2. 서브 클러스터링**
 
-추출된 논문 데이터를 읽고, 3단계와 동일한 방식으로
-`{sub_dir}/problem.json` 과 `{sub_dir}/method.json` 을 생성합니다.
+추출된 논문 데이터를 읽고, **원래 분류 기준과 동일한 타입으로만** 서브 클러스터링합니다.
 (논문 수가 적으므로 클러스터를 2~4개로 나눕니다.)
+
+- `problem.json`에서 재귀한 경우 → `{sub_dir}/problem.json`만 생성
+- `method.json`에서 재귀한 경우 → `{sub_dir}/method.json`만 생성
 
 **5-3. 서브 대시보드 생성**
 
+`{sub_dir}`에서 루트까지의 상대 경로를 계산하여 `--parent-url`과 `--tree-url`을 설정합니다.
+예를 들어 `clusters/A/` (depth 2)에서는 `../../`, `clusters/A/clusters/B/` (depth 3)에서는 `../../../../`입니다.
+
 ```bash
-python skills/Abstract_Area/scripts/generate_index.py {sub_dir} --parent-url ../../index.html --page-title "{cluster_name}"
+python skills/Abstract_Area/scripts/generate_index.py {sub_dir} --parent-url {relative_to_parent}/index.html --page-title "{cluster_name}" --tree-url {relative_to_root}/tree.html
 ```
 
 **5-4. 재귀**
 
-`depth - 1`이 1보다 크다면, 방금 생성된 `{sub_dir}/problem.json`의 각 클러스터에 대해
-5단계를 재귀적으로 반복합니다. 이때 `output_dir`은 `{sub_dir}`로, `depth`는 `depth - 1`로 설정합니다.
+`depth - 1`이 1보다 크다면, 방금 생성된 서브 클러스터 JSON의 각 클러스터에 대해
+5단계를 재귀적으로 반복합니다. 이때 `output_dir`은 `{sub_dir}`로, `depth`는 `depth - 1`로 설정하며, 분류 기준(problem/method)은 그대로 유지합니다.
 
 **5-5. 루트 대시보드 재생성**
 
