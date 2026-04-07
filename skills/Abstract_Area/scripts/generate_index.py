@@ -1,14 +1,25 @@
+import argparse
 import glob
 import json
 import os
+import re
 import sys
 
 
-def generate_dashboard(output_dir):
+def sanitize_dirname(name):
+    safe = re.sub(r'[^\w\s\-]', '', name, flags=re.UNICODE)
+    safe = re.sub(r'\s+', '_', safe).strip('_')
+    return safe[:60] if safe else 'cluster'
+
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def generate_dashboard(output_dir, parent_url=None, page_title=None):
     results_file = os.path.join(output_dir, 'results.jsonl')
     problem_file = os.path.join(output_dir, 'problem.json')
     method_file = os.path.join(output_dir, 'method.json')
-    template_path = os.path.join('skills', 'Abstract_Area', 'assets', 'template.html')
+    template_path = os.path.join(SCRIPT_DIR, '..', 'assets', 'template.html')
     output_file = os.path.join(output_dir, 'index.html')
 
     for f in [problem_file, method_file, template_path]:
@@ -52,7 +63,14 @@ def generate_dashboard(output_dir):
         joined = {}
         for name, info in clusters.items():
             papers = [results_map[fn] for fn in info.get('filenames', []) if fn in results_map]
-            joined[name] = {"summary": info.get('summary', ''), "papers": papers}
+            safe_name = sanitize_dirname(name)
+            sub_page_path = os.path.join(output_dir, 'clusters', safe_name, 'index.html')
+            sub_page_url = f'clusters/{safe_name}/index.html' if os.path.exists(sub_page_path) else None
+            joined[name] = {
+                "summary": info.get('summary', ''),
+                "papers": papers,
+                "sub_page_url": sub_page_url,
+            }
         return joined
 
     all_results = list(results_map.values())
@@ -71,6 +89,12 @@ def generate_dashboard(output_dir):
     ).replace(
         'const methodologyGroups = {};',
         f'const methodologyGroups = {json.dumps(joined_methods, ensure_ascii=False)};'
+    ).replace(
+        'const parentUrl = null;',
+        f'const parentUrl = {json.dumps(parent_url)};'
+    ).replace(
+        'const pageTitle = "";',
+        f'const pageTitle = {json.dumps(page_title or "Research Map")};'
     )
 
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -80,8 +104,13 @@ def generate_dashboard(output_dir):
 
 
 if __name__ == "__main__":
-    output_directory = sys.argv[1] if len(sys.argv) > 1 else '.'
-    if not os.path.isdir(output_directory):
-        print(f"Error: '{output_directory}' is not a valid directory.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output_dir', nargs='?', default='.')
+    parser.add_argument('--parent-url', default=None, dest='parent_url')
+    parser.add_argument('--page-title', default=None, dest='page_title')
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.output_dir):
+        print(f"Error: '{args.output_dir}' is not a valid directory.")
         sys.exit(1)
-    generate_dashboard(output_directory)
+    generate_dashboard(args.output_dir, parent_url=args.parent_url, page_title=args.page_title)

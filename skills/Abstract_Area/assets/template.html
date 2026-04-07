@@ -57,10 +57,19 @@
     <div class="max-w-7xl mx-auto space-y-12">
         <!-- Header & Nav -->
         <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-slate-200 pb-8">
-            <div class="space-y-1">
+            <div class="space-y-2">
+                <div id="back-nav" class="hidden">
+                    <a id="back-link" href="#"
+                        class="inline-flex items-center gap-1.5 text-slate-400 hover:text-orange-500 transition-colors text-sm font-semibold">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        상위 클러스터로
+                    </a>
+                </div>
                 <h1 class="text-4xl font-extrabold tracking-tighter text-slate-900 flex items-center gap-3">
                     <span class="w-10 h-10 accent-gradient rounded-xl shadow-lg shadow-orange-200"></span>
-                    Interactive Research Map
+                    <span id="page-title-text">Interactive Research Map</span>
                 </h1>
                 <p class="text-slate-400 font-medium tracking-tight">Clustered Academic Insights & Trend Analytics</p>
             </div>
@@ -111,6 +120,7 @@
                     <h5 class="text-lg font-extrabold" id="selected-cluster-name">Cluster Details</h5>
                     <p class="text-orange-50 text-sm leading-relaxed" id="selected-cluster-summary">차트의 막대를 클릭하면 해당 영역의
                         핵심 요약이 여기에 표시됩니다.</p>
+                    <div id="sub-cluster-link"></div>
                 </div>
             </div>
         </main>
@@ -140,6 +150,8 @@
         const researchResults = [];
         const problemGroups = {};
         const methodologyGroups = {};
+        const parentUrl = null;
+        const pageTitle = "";
         /**
          * DATA_INJECTION_POINT_END
          */
@@ -154,8 +166,20 @@
         let myChart = null;
         let currentTab = 'problem';
 
+        function initNavigation() {
+            if (parentUrl) {
+                document.getElementById('back-nav').classList.remove('hidden');
+                document.getElementById('back-link').href = parentUrl;
+            }
+            if (pageTitle) {
+                document.getElementById('page-title-text').innerText = pageTitle;
+                document.title = pageTitle + ' — Research Map';
+            }
+        }
+
         function initDashboard() {
             document.getElementById('total-papers-counter').innerText = researchResults.length;
+            initNavigation();
             renderChart();
 
             // Default select the first cluster if exists
@@ -248,6 +272,14 @@
             // Update Summary Card
             document.getElementById('selected-cluster-name').innerText = clusterName;
             document.getElementById('selected-cluster-summary').innerText = cluster.summary || "이 연구 영역에 속한 논문들의 흐름입니다.";
+
+            // Sub-cluster drill-down link
+            const subLinkEl = document.getElementById('sub-cluster-link');
+            if (cluster.sub_page_url) {
+                subLinkEl.innerHTML = `<a href="${cluster.sub_page_url}" class="inline-flex items-center gap-2 text-white/80 hover:text-white text-sm font-bold transition-colors border border-white/30 hover:border-white/60 rounded-xl px-4 py-2 hover:bg-white/10">세부 클러스터 보기 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></a>`;
+            } else {
+                subLinkEl.innerHTML = '';
+            }
 
             // Build Detailed Paper Cards
             const container = document.getElementById('paper-list-container');

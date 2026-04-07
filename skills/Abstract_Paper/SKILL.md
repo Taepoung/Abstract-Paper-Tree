@@ -1,7 +1,7 @@
 ---
 name: Abstract-Paper
 description: PDF 형식의 개별 학술 논문을 분석하여 핵심 연구 문제, 해결 접근 방식, 논리적 한계점을 정밀하게 추출합니다. 분석 대상인 PDF 논문의 파일명을 인자로 받습니다. 사용자가 특정 논문의 분석이나 핵심 내용 요약을 요청할 때, 또는 학술 데이터베이스 구축을 위해 개별 논문의 구조화된 데이터가 필요할 때 트리거됩니다. 추출된 데이터는 results/ 디렉토리에 개별 JSON 파일로 저장되어 대규모 연구 동향 분석의 기초 자료로 활용됩니다.
-argument-hint: 논문 파일 이름
+argument-hint: 논문 파일 이름 [언어(default:korean)]
 ---
 
 # Abstract-Paper
@@ -13,11 +13,21 @@ argument-hint: 논문 파일 이름
 
 1.  **논문 파싱**
 
-현재 작업 디렉토리에서 주어진 논문 파일을 찾아서 다음 명령어로 논문의 정보를 가져옵니다.
+현재 작업 디렉토리에서 주어진 논문 파일을 찾아서 다음 명령어로 파싱합니다.
 
 ```bash
-pdfinfo paper.pdf
-pdftotext -layout paper.pdf paper.txt
+python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
+```
+
+스크립트는 본문(References 이전)과 Appendix를 분리하여 아래 파일로 저장합니다.
+- `/tmp/paper_main.txt` — 본문
+- `/tmp/paper_appendix.txt` — Appendix (없으면 빈 파일)
+
+이후 두 파일을 읽어 내용 분석에 사용합니다.
+
+```bash
+cat /tmp/paper_main.txt
+cat /tmp/paper_appendix.txt
 ```
 
 2.  **내용 분석**:
@@ -26,7 +36,7 @@ pdftotext -layout paper.pdf paper.txt
 
 ```json
 {
-"filename": "논문 파일 이름",
+"filename": "논문 파일 이름.pdf",
 "title": "논문 제목 원문",
 "problem": "핵심 문제 (core problem)",
 "methodology": "방법론 서술",
@@ -49,8 +59,8 @@ pdftotext -layout paper.pdf paper.txt
 **limitation**: 단순 약점 나열이 아니라, 방법의 어떤 부분이 원인인지를 연결하여 서술한다. (예: "~단계가 ~에 의존하기 때문에 ~한 한계가 있다")
 
 #### 공통 규칙
-- 논문에 없는 정보는 추측하지 않고 "논문에 명시되지 않음"으로 표기한다.
-- 한국어로 작성하되, 고유명사·기법명·모듈명은 영어 원문을 유지한다.
+- 논문에 없는 정보는 추측하지 않고 "논문에 명시되지 않음"으로 표기한다. (언어가 english인 경우 "Not explicitly stated in the paper"로 표기)
+- 인자로 전달받은 언어로 작성하되, 고유명사·기법명·모듈명은 영어 원문을 유지한다. 언어가 명시되지 않은 경우 한국어로 작성한다.
 
 #### 예시
 
@@ -66,25 +76,18 @@ pdftotext -layout paper.pdf paper.txt
 
 3.  **출력**:
 
-논문에서 추출한 JSON 객체를 `results/` 디렉토리에 개별 파일로 저장합니다.
-파일명은 원본 PDF 파일명에서 확장자를 `.json`으로 바꾼 것입니다.
-`filename` 필드는 반드시 포함되어야 합니다. 특수문자로 인한 셸 이스케이프 오류를 방지하기 위해 반드시 Python을 사용하여 안전하게 직렬화합니다.
+분석 결과 JSON을 stdout에 작성한 뒤 저장 스크립트에 파이프로 전달합니다.
 
 ```bash
-python -c "
-import json, os
-obj = {
-    'filename': '논문파일이름.pdf',
-    'title': '...',
-    'problem': '...',
-    'methodology': '...',
-    'limitation': '...'
+python skills/Abstract_Paper/scripts/save_result.py << 'EOF'
+{
+  "filename": "논문파일이름.pdf",
+  "title": "...",
+  "problem": "...",
+  "methodology": "...",
+  "limitation": "..."
 }
-os.makedirs('results', exist_ok=True)
-out = os.path.join('results', os.path.splitext(obj['filename'])[0] + '.json')
-with open(out, 'w', encoding='utf-8') as f:
-    json.dump(obj, f, ensure_ascii=False, indent=2)
-"
+EOF
 ```
 
 이후 다음의 메세지를 출력합니다
