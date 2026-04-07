@@ -1,4 +1,4 @@
-# What in My Researches
+# Abstract Paper Tree
 
 > Claude plugin for turning a folder of research PDFs into structured insights and navigable HTML research maps.
 
@@ -10,7 +10,7 @@
 
 ### 개요
 
-**What in My Researches**는 여러 개의 PDF 논문을 분석해 연구 문제, 방법론, 한계점을 구조화된 JSON으로 정리하고, 이를 다시 클러스터링해 HTML 대시보드와 트리 맵으로 시각화하는 Claude 플러그인입니다.
+**Abstract Paper Tree**는 여러 개의 PDF 논문을 분석해 연구 문제, 방법론, 한계점을 구조화된 JSON으로 정리하고, 이를 다시 클러스터링해 HTML 대시보드와 트리 맵으로 시각화하는 Claude 플러그인입니다.
 
 이 저장소는 다음 3가지 구성요소로 이루어져 있습니다.
 
@@ -142,7 +142,7 @@ APT: korean 2
 
 ### Overview
 
-**What in My Researches** is a Claude plugin that analyzes research PDFs, extracts structured insights such as the core problem, methodology, and limitations, then clusters the results into interactive HTML dashboards and tree views.
+**Abstract Paper Tree** is a Claude plugin that analyzes research PDFs, extracts structured insights such as the core problem, methodology, and limitations, then clusters the results into interactive HTML dashboards and tree views.
 
 The repository is built around three parts:
 
