@@ -58,6 +58,8 @@ argument-hint: "[언어(default:korean)] [재귀깊이(default:1)]"
 
 이후 모든 단계에서 `language`와 `depth` 값을 참조합니다.
 
+**`results.jsonl`이 이미 존재하면 1~3단계를 건너뛰고 4단계로 바로 진행한다.**
+
 ### 1단계: 미분석 논문 스캔
 
 ```bash
