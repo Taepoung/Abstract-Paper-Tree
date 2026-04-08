@@ -9,6 +9,15 @@
             "command": "bash -c 'FILE_PATH=$(cat | jq -r \".tool_input.file_path\"); if [[ \"$FILE_PATH\" == *.py ]]; then echo \"BLOCKED: .py 파일은 읽지 말고 실행하세요\" >&2; exit 2; fi'"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'CMD=$(cat | jq -r \".tool_input.command\"); if ! echo \"$CMD\" | grep -qE \"^python\\s\"; then echo \"BLOCKED: Bash는 Python 스크립트 실행에만 사용하세요\" >&2; exit 2; fi'"
+          }
+        ]
       }
     ],
     "PostToolUse": [

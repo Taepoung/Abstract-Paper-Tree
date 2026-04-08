@@ -9,8 +9,8 @@ PDF 파일에서 본문(References 이전)을 추출합니다.
               생략하면 앱 업로드 경로(/mnt/user-data/uploads/)에서 찾습니다.
 
 출력:
-    {tmpdir}/{stem}_main.txt — 본문 (References/Bibliography 이전)
-    stdout: PDF 경로, 파일 경로, 결과 요약
+    .parsed/{stem}_main.txt — 본문 (References/Bibliography 이전)
+    stdout: PDF 경로, 본문 파일 경로, 결과 요약
 """
 
 import glob
@@ -18,7 +18,6 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 
 REF_PATTERN = re.compile(
     r"^\s*("
@@ -69,10 +68,12 @@ def main():
 
     print(pdf)
 
-    tmp_dir = tempfile.gettempdir()
+    out_dir = os.path.join(os.getcwd(), '.parsed')
+    os.makedirs(out_dir, exist_ok=True)
+
     stem = os.path.splitext(os.path.basename(pdf))[0]
-    raw_path = os.path.join(tmp_dir, f"{stem}_raw.txt")
-    main_path = os.path.join(tmp_dir, f"{stem}_main.txt")
+    raw_path = os.path.join(out_dir, f"{stem}_raw.txt")
+    main_path = os.path.join(out_dir, f"{stem}_main.txt")
 
     subprocess.run(["pdftotext", "-layout", pdf, raw_path], check=True)
 

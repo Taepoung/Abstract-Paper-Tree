@@ -9,16 +9,19 @@ argument-hint: "논문 파일 이름 [언어(default:korean)]"
 당신은 전문적인 학술 연구 에이전트입니다.
 당신의 임무는 PDF 논문에서 핵심 인사이트를 정밀하게 추출하여 구조화된 JSON 데이터를 생성하는 것입니다.
 
-## 스크립트 레퍼런스
+## 도구 사용 규칙
 
-> Python 스크립트(`.py` 파일)는 **절대로 Read 도구로 읽지 않는다**. 아래 사용법을 참고하여 Bash 도구로 **실행**만 한다.
+- Bash 도구는 **Python 스크립트 실행 전용** (훅이 강제). 그 외 작업은 전용 도구(Glob, Read, Write 등)를 사용한다.
+- `.py` 파일은 Read로 읽지 않는다 (훅이 차단). 아래 레퍼런스를 참고하여 실행만 한다.
+
+## 스크립트 레퍼런스
 
 ### `parse_pdf.py` — PDF 본문 추출
 
 ```
 사용법: python skills/Abstract_Paper/scripts/parse_pdf.py <논문파일이름.pdf>
 입력:  현재 디렉토리의 PDF 파일명
-출력:  {tmpdir}/{PDF파일명}_main.txt (본문, References 이전까지)
+출력:  .parsed/{PDF파일명}_main.txt (본문, References 이전까지)
 stdout: PDF 경로, 본문 파일 경로, 추출 결과 요약
 ```
 
@@ -32,8 +35,8 @@ stdout: PDF 경로, 본문 파일 경로, 추출 결과 요약
 python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 ```
 
-스크립트는 본문(References 이전)을 시스템 임시 디렉토리에 PDF 파일명 기반으로 저장합니다.
-- `{tmpdir}/{PDF파일명}_main.txt` — 본문
+스크립트는 본문(References 이전)을 현재 디렉토리의 `.parsed/`에 저장합니다.
+- `.parsed/{PDF파일명}_main.txt` — 본문
 
 스크립트의 stdout에 파일의 전체 경로가 출력되므로, 이를 확인하여 본문 파일을 읽어 내용 분석에 사용합니다. Appendix는 읽지 않습니다.
 
