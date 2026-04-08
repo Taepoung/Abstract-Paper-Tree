@@ -2,11 +2,14 @@
 results.jsonl을 파싱하여 keywords.html을 생성합니다.
 """
 import json
+
+
+def safe_json(obj):
+    import json
+    return json.dumps(obj, ensure_ascii=False).replace('</', '<\/')
 import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
 def generate_keywords(output_dir):
     jsonl_path = os.path.join(output_dir, 'results.jsonl')
     if not os.path.exists(jsonl_path):
@@ -29,7 +32,7 @@ def generate_keywords(output_dir):
 
     html = html.replace(
         'const researchResults = [];',
-        f'const researchResults = {json.dumps(results, ensure_ascii=False)};'
+        f'const researchResults = {safe_json(results)};'
     )
 
     output_file = os.path.join(output_dir, 'keywords.html')
@@ -37,8 +40,6 @@ def generate_keywords(output_dir):
         f.write(html)
 
     print(f"Built: {output_file}")
-
-
 if __name__ == '__main__':
     import sys
     generate_keywords(os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else '.'))

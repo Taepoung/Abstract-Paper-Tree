@@ -1,20 +1,19 @@
 import argparse
 import glob
 import json
+
+
+def safe_json(obj):
+    import json
+    return json.dumps(obj, ensure_ascii=False).replace('</', '<\/')
 import os
 import re
 import sys
-
-
 def sanitize_dirname(name):
     safe = re.sub(r'[^\w\s\-]', '', name, flags=re.UNICODE)
     safe = re.sub(r'\s+', '_', safe).strip('_')
     return safe[:60] if safe else 'cluster'
-
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
 def generate_dashboard(output_dir, parent_url=None, page_title=None, tree_url=None):
     results_file = os.path.join(output_dir, 'results.jsonl')
     problem_file = os.path.join(output_dir, 'problem.json')
@@ -88,13 +87,13 @@ def generate_dashboard(output_dir, parent_url=None, page_title=None, tree_url=No
 
     html = html.replace(
         'const researchResults = [];',
-        f'const researchResults = {json.dumps(all_results, ensure_ascii=False)};'
+        f'const researchResults = {safe_json(all_results)};'
     ).replace(
         'const problemGroups = {};',
-        f'const problemGroups = {json.dumps(joined_problems, ensure_ascii=False)};'
+        f'const problemGroups = {safe_json(joined_problems)};'
     ).replace(
         'const methodologyGroups = {};',
-        f'const methodologyGroups = {json.dumps(joined_methods, ensure_ascii=False)};'
+        f'const methodologyGroups = {safe_json(joined_methods)};'
     ).replace(
         'const parentUrl = null;',
         f'const parentUrl = {json.dumps(parent_url)};'
@@ -110,8 +109,6 @@ def generate_dashboard(output_dir, parent_url=None, page_title=None, tree_url=No
         f.write(html)
 
     print(f"Generated {output_file} ({len(all_results)} papers)")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir', nargs='?', default='.')
