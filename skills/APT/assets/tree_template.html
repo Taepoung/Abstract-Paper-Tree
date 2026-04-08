@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Research Cluster Tree</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
@@ -380,11 +380,14 @@
 
             // 중복 논문 연결선 - 외부 호를 따라 빙 돌아가게
             const maxLeafR = d3.max(root.descendants(), d => d.y) || radius;
-            const outerR = maxLeafR + 70;
+            const baseOuterR = maxLeafR + 50;
             const dupLayer = g.append('g').attr('class', 'dup-links');
             const dupLinksByFile = new Map();
-            byFilename.forEach((nodes, filename) => {
-                if (nodes.length < 2) return;
+            // 각 중복 논문에 다른 반지름을 부여해 선이 겹치지 않게
+            const dupFilenameList = [...byFilename.entries()].filter(([,n]) => n.length >= 2).map(([f]) => f);
+            dupFilenameList.forEach((filename, fileIdx) => {
+                const nodes = byFilename.get(filename);
+                const outerR = baseOuterR + fileIdx * 18;
                 const links = [];
                 for (let i = 0; i < nodes.length; i++) {
                     for (let j = i + 1; j < nodes.length; j++) {
@@ -553,10 +556,13 @@
                         const rtCfg = TYPE_CONFIG[n.data.research_type];
                         const badgeCls = rtCfg ? rtCfg.pill : 'bg-slate-100 text-slate-400 border-slate-200';
                         const badgeLabel = n.data.research_type || '—';
+                        const kwHtml = (n.data.keywords && n.data.keywords.length)
+                            ? `<div class="flex flex-wrap gap-1 mt-1.5">${n.data.keywords.slice(0,4).map(k => `<span class="text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">${k}</span>`).join('')}</div>`
+                            : '';
                         item.innerHTML = `
                             <p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p>
                             <p class="text-xs text-slate-400 mt-0.5 mb-1.5">${n.data.filename || ''}</p>
-                            <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${badgeCls}">${badgeLabel}</span>`;
+                            <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${badgeCls}">${badgeLabel}</span>${kwHtml}`;
                         item.onclick = () => { showDetail(n.data); scrollToDetail(); };
                         list.appendChild(item);
                     });
