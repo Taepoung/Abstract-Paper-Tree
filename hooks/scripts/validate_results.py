@@ -59,6 +59,8 @@ def validate_file(filepath):
     kw = obj.get("keywords", None)
     if not isinstance(kw, list) or len(kw) == 0:
         errors.append(f"[ERROR] {json_file}: 'keywords' 필드가 비어 있거나 배열이 아닙니다")
+    elif len(kw) != 3:
+        errors.append(f"[ERROR] {json_file}: 'keywords'는 정확히 3개여야 합니다 — 현재 {len(kw)}개")
 
     return errors
 
