@@ -19,6 +19,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 같은 디렉토리의 스크립트를 import
 sys.path.insert(0, SCRIPT_DIR)
+import subprocess
 from generate_index import generate_dashboard
 from generate_tree import generate_tree
 
@@ -83,6 +84,10 @@ def main():
     if not os.path.isdir(output_dir):
         print(f"Error: '{output_dir}' is not a valid directory.", file=sys.stderr)
         sys.exit(1)
+
+    # 0. 서브 클러스터 데이터 재추출 (results.jsonl 변경 반영)
+    extract_script = os.path.join(SCRIPT_DIR, 'extract_subcluster.py')
+    subprocess.run([sys.executable, extract_script, output_dir], check=True)
 
     # 1. 모든 대시보드 재귀 생성
     build_recursive(output_dir, root_dir=output_dir)

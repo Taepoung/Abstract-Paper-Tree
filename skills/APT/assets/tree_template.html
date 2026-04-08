@@ -77,10 +77,15 @@
                         <span class="text-orange-200 text-sm font-semibold" id="detail-count-label">papers</span>
                     </div>
                     <p class="text-orange-100 text-xs leading-relaxed" id="detail-summary"></p>
+                    <div id="detail-keywords" class="hidden flex-wrap gap-1"></div>
                     <a id="detail-link" href="#" class="hidden mt-1 inline-flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/30 hover:border-white/60 rounded-xl text-sm font-bold text-white transition-all">
                         대시보드 이동
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </a>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 space-y-3">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Type Filter</p>
+                    <div id="tree-type-filter" class="flex flex-wrap gap-1.5"></div>
                 </div>
                 <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 space-y-3">
                     <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Legend</p>
@@ -125,17 +130,89 @@
          * DATA_INJECTION_POINT_END
          */
 
+        const TYPE_CONFIG = {
+            Method:     { fill: '#dbeafe', stroke: '#3b82f6', pill: 'bg-blue-50 text-blue-500 border-blue-200' },
+            Empirical:  { fill: '#dcfce7', stroke: '#22c55e', pill: 'bg-green-50 text-green-600 border-green-200' },
+            Qualitative:{ fill: '#f3e8ff', stroke: '#a855f7', pill: 'bg-purple-50 text-purple-500 border-purple-200' },
+            Benchmark:  { fill: '#fef9c3', stroke: '#eab308', pill: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
+            Survey:     { fill: '#f1f5f9', stroke: '#64748b', pill: 'bg-slate-100 text-slate-500 border-slate-200' },
+        };
+        const ALL_TYPES = Object.keys(TYPE_CONFIG);
+        let treeActiveTypes = new Set(ALL_TYPES);
+
+        // Type filter UI
+        (function initTypeFilter() {
+            const el = document.getElementById('tree-type-filter');
+            ALL_TYPES.forEach(type => {
+                const btn = document.createElement('button');
+                btn.dataset.type = type;
+                btn.className = `text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border transition-all ${TYPE_CONFIG[type].pill}`;
+                btn.textContent = type;
+                btn.onclick = () => {
+                    if (treeActiveTypes.has(type)) treeActiveTypes.delete(type);
+                    else treeActiveTypes.add(type);
+                    if (treeActiveTypes.size === 0) treeActiveTypes = new Set(ALL_TYPES);
+                    el.querySelectorAll('button').forEach(b => {
+                        b.style.opacity = treeActiveTypes.has(b.dataset.type) ? '1' : '0.3';
+                    });
+                    applyTypeFilter();
+                };
+                el.appendChild(btn);
+            });
+        })();
+
+        // 타입 필터에 맞게 트리 데이터를 재귀적으로 필터링 + count 재계산
+        function countLeaves(node) {
+            if (!node.children || !node.children.length) return node.is_paper ? 1 : 0;
+            return node.children.reduce((s, c) => s + countLeaves(c), 0);
+        }
+        function filterTreeData(node, types, isRoot) {
+            if (!node) return null;
+            if (node.is_paper) {
+                return types.has(node.research_type || 'Method') ? node : null;
+            }
+            const filteredChildren = (node.children || [])
+                .map(c => filterTreeData(c, types, false))
+                .filter(Boolean);
+            if (!isRoot && filteredChildren.length === 0) return null;
+            const filtered = { ...node, children: filteredChildren };
+            filtered.count = countLeaves(filtered);
+            return filtered;
+        }
+
+        let currentRawData = null;
+        let currentSelectedNodeName = null;
+
+        function findNodeByName(node, name) {
+            if (!node) return null;
+            if (node.name === name) return node;
+            for (const c of (node.children || [])) {
+                const found = findNodeByName(c, name);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function applyTypeFilter() {
+            if (!currentRawData) return;
+            const filtered = filterTreeData(currentRawData, treeActiveTypes, true);
+            renderTree(filtered, /* skipDataStore */ true);
+            if (currentSelectedNodeName) {
+                const match = findNodeByName(filtered, currentSelectedNodeName);
+                if (match) showDetail(match);
+            }
+        }
+
         const svgEl = document.getElementById('tree-svg');
         const container = document.getElementById('tree-container');
 
-        // 노드 수에 따라 내부 캔버스 크기 계산 (실제 그리기용)
         function countNodes(d) { if (!d || !d.children) return 1; return 1 + d.children.reduce((s, c) => s + countNodes(c), 0); }
         function maxLeaves(d) { if (!d || !d.children || !d.children.length) return 1; return d.children.reduce((s, c) => s + maxLeaves(c), 0); }
-        const maxNodes = Math.max(countNodes(problemTreeData), countNodes(methodTreeData), 1);
-        const leafCount = Math.max(maxLeaves(problemTreeData), maxLeaves(methodTreeData), 1);
-        // 리프 노드 하나당 최소 22px 호 길이 보장 → 겹침 방지
-        const minRadius = Math.max(180, Math.ceil((leafCount * 22) / (2 * Math.PI)));
-        const canvasSize = 2 * (minRadius + 120);
+        function calcCanvasSize(data) {
+            const lc = Math.max(maxLeaves(data), 1);
+            const r = Math.max(180, Math.ceil((lc * 32) / (2 * Math.PI)));
+            return 2 * (r + 120);
+        }
 
         // SVG는 뷰포트 크기에 맞추고, 렌더 후 fitView로 줌 조정
         function getViewSize() {
@@ -177,13 +254,17 @@
             document.getElementById('tab-method').classList.toggle('tab-active', type === 'method');
             document.getElementById('tab-problem').classList.toggle('text-slate-400', type !== 'problem');
             document.getElementById('tab-method').classList.toggle('text-slate-400', type !== 'method');
-            renderTree(type === 'problem' ? problemTreeData : methodTreeData);
+            const raw = type === 'problem' ? problemTreeData : methodTreeData;
+            currentRawData = raw;
+            renderTree(filterTreeData(raw, treeActiveTypes, true), true);
         }
 
+        // 기본값 — renderTree 내에서 canvasSize 기반으로 재정의됨
+        let _nodeRadiusRoot = 28, _nodeRadiusCluster = 20, _nodeRadiusLeaf = 6;
         function nodeRadius(d) {
-            if (d.depth === 0) return 28;
-            if (d.data.is_paper) return 6;
-            return 20;
+            if (d.depth === 0) return _nodeRadiusRoot;
+            if (d.data.is_paper) return _nodeRadiusLeaf;
+            return _nodeRadiusCluster;
         }
 
         // Polar → Cartesian
@@ -191,62 +272,95 @@
             return [d.y * Math.sin(d.x), -d.y * Math.cos(d.x)];
         }
 
-        function renderTree(data) {
+        function renderTree(data, skipDataStore) {
+            if (!skipDataStore) currentRawData = data;
             zoomGroup.selectAll('*').remove();
             svg.call(zoom.transform, d3.zoomIdentity);
-            if (!data || !data.children?.length) return;
+            if (!data) return;
+            // 자식이 없어도 루트 원은 그림
+            const hasChildren = data.children?.length > 0;
 
             document.getElementById('total-count').innerText = data.count ?? '—';
 
-            const cx = canvasSize / 2, cy = canvasSize / 2;
-            const radius = canvasSize / 2 - 15;
-            const g = zoomGroup.append('g').attr('transform', `translate(${cx},${cy})`);
-
-            const tree = d3.tree()
-                .size([2 * Math.PI, radius])
-                .separation((a, b) => (a.parent === b.parent ? 1 : 1.5) / Math.max(a.depth, 1));
+            // ── 등각 분할 + 최소 반지름 역산 레이아웃 ──
+            // canvasSize는 layout 계산 후 결정
 
             const root = d3.hierarchy(data);
-            tree(root);
-
-            // 깊이별 반지름: 전체 반지름을 maxDepth로 균등 분할
             const maxDepth = d3.max(root.descendants(), d => d.depth) || 1;
-            const ringStep = radius / maxDepth;
-            root.each(d => { if (d.depth > 0) d.y = ringStep * d.depth; });
+            const GAP = 10;
+            const MARGIN = 1.5;
+            const LEAF_MARGIN = 1.0; // 리프 간격 배수
 
-            // ── 충돌 해소: 부모 섹터를 유지하면서 형제끼리만 밀어냄 (bottom-up) ──
-            // 이 방식은 자식이 항상 부모 방향으로 뻗어나가도록 트리 구조를 보존함
-            const GAP = 6; // 노드 간 최소 여백 px
-            function enforceSpacing(node) {
+            // 1) 섹터 등분 & 각도 배정 (top-down)
+            function assignSectors(node, start, end) {
+                node._start = start;
+                node._end = end;
+                node.x = (start + end) / 2;
                 if (!node.children || !node.children.length) return;
-                // 자식 먼저 재귀 처리
-                node.children.forEach(enforceSpacing);
-
-                // 형제 노드끼리만 각도 밀어냄 (정렬된 순서로)
-                const ch = node.children;
-                for (let iter = 0; iter < 100; iter++) {
-                    let moved = false;
-                    for (let i = 0; i < ch.length - 1; i++) {
-                        const a = ch[i], b = ch[i + 1];
-                        const ax = a.y * Math.sin(a.x), ay = -a.y * Math.cos(a.x);
-                        const bx = b.y * Math.sin(b.x), by = -b.y * Math.cos(b.x);
-                        const dist = Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2);
-                        const minDist = nodeRadius(a) + nodeRadius(b) + GAP;
-                        if (dist < minDist && dist > 0) {
-                            const need = (minDist - dist) / 2;
-                            a.x -= need / Math.max(a.y, 1);
-                            b.x += need / Math.max(b.y, 1);
-                            moved = true;
-                        }
-                    }
-                    if (!moved) break;
-                }
-                // 부모 각도를 자식들 중간으로 재조정 (부모 섹터 유지)
-                if (node.depth > 0) {
-                    node.x = (ch[0].x + ch[ch.length - 1].x) / 2;
-                }
+                const step = (end - start) / node.children.length;
+                node.children.forEach((c, i) => assignSectors(c, start + i * step, start + (i + 1) * step));
             }
-            enforceSpacing(root);
+            assignSectors(root, 0, 2 * Math.PI);
+
+            // 2) 깊이별 최소 반지름 역산 (chord = 2r·sin(w/2))
+            const minRByDepth = new Array(maxDepth + 1).fill(0);
+            root.each(d => {
+                if (d.depth === 0) return;
+                const w = d._end - d._start;
+                const sinHalf = Math.sin(w / 2);
+                const need = (2 * nodeRadius(d) + GAP) * MARGIN;
+                const minR = sinHalf < 1e-9 ? need / Math.max(w, 1e-9) : need / (2 * sinHalf);
+                if (minR > minRByDepth[d.depth]) minRByDepth[d.depth] = minR;
+            });
+
+            // 리프 간 최소 간격 — LEAF_MARGIN 별도 적용
+            const leaves = root.leaves();
+            const leafNodeR = 6;
+            const leafStep = (2 * Math.PI) / Math.max(leaves.length, 1);
+            const sinLeafHalf = Math.sin(leafStep / 2);
+            const leafMinR = sinLeafHalf < 1e-9
+                ? (2 * leafNodeR + GAP) * LEAF_MARGIN / Math.max(leafStep, 1e-9)
+                : (2 * leafNodeR + GAP) * LEAF_MARGIN / (2 * sinLeafHalf);
+            if (leafMinR > minRByDepth[maxDepth]) minRByDepth[maxDepth] = leafMinR;
+
+            // 3) 단조 증가 보정
+            for (let i = 1; i <= maxDepth; i++) {
+                minRByDepth[i] = Math.max(minRByDepth[i], minRByDepth[i - 1] + GAP);
+            }
+
+            // 4) 깊이 간 간격 균등화
+            const rawGaps = [];
+            for (let i = 1; i <= maxDepth; i++) rawGaps.push(minRByDepth[i] - minRByDepth[i - 1]);
+            const uniformGap = Math.max(...rawGaps);
+            const uniformR = new Array(maxDepth + 1).fill(0);
+            for (let i = 1; i <= maxDepth; i++) uniformR[i] = uniformGap * i;
+
+            // 5) canvasSize 기반 radius에 맞게 스케일
+            const canvasSize = calcCanvasSize(data);
+            const radius = canvasSize / 2 - 15;
+
+            // 캔버스 크기에 비례해 노드 크기 조정 (기준: canvasSize=600)
+            const sizeScale = Math.sqrt(canvasSize / 600);
+            _nodeRadiusRoot    = Math.round(28 * sizeScale);
+            _nodeRadiusCluster = Math.round(20 * sizeScale);
+            _nodeRadiusLeaf    = 6; // 리프는 고정
+            const fontRoot    = Math.round(11 * sizeScale * 1.4);
+            const fontCluster = Math.round(10 * sizeScale * 1.4);
+            const cx = canvasSize / 2, cy = canvasSize / 2;
+            const g = zoomGroup.append('g').attr('transform', `translate(${cx},${cy})`);
+
+            // 자식 없으면 루트 원만 그리고 종료
+            if (!hasChildren) {
+                g.append('circle').attr('r', 28).attr('fill', '#f97316');
+                g.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+                    .attr('font-size', '11px').attr('font-weight', '800').attr('fill', '#fff')
+                    .text(data.count ?? '');
+                fitView();
+                return;
+            }
+
+            const rScale = uniformR[maxDepth] > radius ? radius / uniformR[maxDepth] : 1;
+            root.each(d => { d.y = d.depth === 0 ? 0 : uniformR[d.depth] * rScale; });
 
             // 중복 논문 계산
             const allPaperNodes = root.descendants().filter(d => d.data.is_paper && d.data.filename);
@@ -326,12 +440,18 @@
                 .attr('r', nodeRadius)
                 .attr('fill', d => {
                     if (d.depth === 0) return '#f97316';
-                    if (d.data.is_paper) return dupFilenames.has(d.data.filename) ? '#ede9fe' : '#fff7ed';
-                    return d.children?.length ? '#ffffff' : '#fff7ed';
+                    if (d.data.is_paper) {
+                        const cfg = TYPE_CONFIG[d.data.research_type] || TYPE_CONFIG['Method'];
+                        return cfg.fill;
+                    }
+                    return '#ffffff';
                 })
                 .attr('stroke', d => {
                     if (d.depth === 0) return 'none';
-                    if (d.data.is_paper) return dupFilenames.has(d.data.filename) ? '#a78bfa' : '#fdba74';
+                    if (d.data.is_paper) {
+                        const cfg = TYPE_CONFIG[d.data.research_type] || TYPE_CONFIG['Method'];
+                        return cfg.stroke;
+                    }
                     return '#f97316';
                 })
                 .attr('stroke-width', d => d.depth === 0 ? 0 : 1.5);
@@ -339,14 +459,14 @@
             // Root: 총 개수
             node.filter(d => d.depth === 0).append('text')
                 .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                .attr('font-size', '11px').attr('font-weight', '800').attr('fill', '#fff')
+                .attr('font-size', `${fontRoot}px`).attr('font-weight', '800').attr('fill', '#fff')
                 .attr('pointer-events', 'none')
                 .text(d => d.data.count ?? '');
 
             // 클러스터: 원 안에 개수
             node.filter(d => d.depth > 0 && !d.data.is_paper).append('text')
                 .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                .attr('font-size', '10px').attr('font-weight', '700').attr('fill', '#f97316')
+                .attr('font-size', `${fontCluster}px`).attr('font-weight', '700').attr('fill', '#f97316')
                 .attr('pointer-events', 'none')
                 .text(d => d.data.count);
 
@@ -405,7 +525,16 @@
             if (papers.length) {
                 const section = document.createElement('div');
                 section.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
-                section.innerHTML = `<p class="text-xs font-black text-orange-500 uppercase tracking-widest">Papers — ${papers.length} total</p>`;
+                // 타입별 개수 집계
+                const typeCounts = {};
+                papers.forEach(n => { const t = n.data.research_type || ''; typeCounts[t] = (typeCounts[t] || 0) + 1; });
+                const typeBadges = Object.entries(typeCounts).map(([t, cnt]) => {
+                    const cfg = TYPE_CONFIG[t];
+                    return cfg
+                        ? `<span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${cfg.pill}">${t} ${cnt}</span>`
+                        : `<span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-slate-100 text-slate-400 border-slate-200">${cnt}</span>`;
+                }).join('');
+                section.innerHTML = `<div class="flex items-center gap-2 flex-wrap"><p class="text-xs font-black text-orange-500 uppercase tracking-widest">Papers — ${papers.length} total</p>${typeBadges}</div>`;
 
                 // 부모(클러스터)별 그룹
                 const byParent = d3.groups(papers, n => n.parent?.data?.name || 'Root');
@@ -421,9 +550,13 @@
                     children.forEach(n => {
                         const item = document.createElement('button');
                         item.className = 'text-left p-3 rounded-xl border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all group';
+                        const rtCfg = TYPE_CONFIG[n.data.research_type];
+                        const badgeCls = rtCfg ? rtCfg.pill : 'bg-slate-100 text-slate-400 border-slate-200';
+                        const badgeLabel = n.data.research_type || '—';
                         item.innerHTML = `
                             <p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p>
-                            <p class="text-xs text-slate-400 mt-0.5">${n.data.filename || ''}</p>`;
+                            <p class="text-xs text-slate-400 mt-0.5 mb-1.5">${n.data.filename || ''}</p>
+                            <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${badgeCls}">${badgeLabel}</span>`;
                         item.onclick = () => { showDetail(n.data); scrollToDetail(); };
                         list.appendChild(item);
                     });
@@ -437,16 +570,39 @@
             fitView();
         }
 
+        function typeBadgeHTML(type) {
+            const cfg = TYPE_CONFIG[type];
+            if (!cfg) return '';
+            return `<span style="display:inline-block;padding:1px 8px;border-radius:999px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,0.22);color:#fff;border:1px solid rgba(255,255,255,0.35);">${type}</span>`;
+        }
+
         function showDetail(data) {
+            currentSelectedNodeName = data.name;
             document.getElementById('detail-name').innerText = data.name;
             if (data.is_paper) {
-                document.getElementById('detail-count').innerText = '논문';
-                document.getElementById('detail-count-label').innerText = data.filename || '';
+                // 논문 리프: 제목(name), 파일명, 뱃지
+                document.getElementById('detail-count').innerText = '';
+                document.getElementById('detail-count-label').innerHTML =
+                    `<div style="display:flex;flex-direction:column;gap:4px;">` +
+                    `<span style="font-size:10px;opacity:.7;">${data.filename || ''}</span>` +
+                    typeBadgeHTML(data.research_type) +
+                    `</div>`;
             } else {
                 document.getElementById('detail-count').innerText = data.count ?? '—';
                 document.getElementById('detail-count-label').innerText = 'papers';
             }
-            document.getElementById('detail-summary').innerText = data.summary || '';
+            document.getElementById('detail-summary').innerText = data.is_paper ? '' : (data.summary || '');
+            const kwEl = document.getElementById('detail-keywords');
+            if (data.is_paper && data.keywords?.length) {
+                kwEl.innerHTML = data.keywords.map(k =>
+                    `<span style="display:inline-block;margin:2px 2px 0 0;padding:1px 7px;background:rgba(255,255,255,0.18);border-radius:999px;font-size:10px;font-weight:600;color:#fff;">${k}</span>`
+                ).join('');
+                kwEl.classList.remove('hidden');
+                kwEl.style.display = 'flex';
+            } else {
+                kwEl.classList.add('hidden');
+                kwEl.style.display = '';
+            }
             const linkEl = document.getElementById('detail-link');
             if (data.url) { linkEl.href = data.url; linkEl.classList.remove('hidden'); }
             else { linkEl.classList.add('hidden'); }
@@ -461,7 +617,8 @@
             document.getElementById('detail-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        renderTree(problemTreeData);
+        currentRawData = problemTreeData;
+        renderTree(filterTreeData(problemTreeData, treeActiveTypes, true), true);
     </script>
 </body>
 </html>

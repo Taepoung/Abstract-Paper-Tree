@@ -85,10 +85,10 @@ python skills/APT/scripts/merge_results.py
 
 ### 4단계: 클러스터링
 
-`results.jsonl` 파일을 읽어 각 논문의 분석 데이터를 파악하고, 다음 두 가지 분류를 수행하여 Write 도구로 저장합니다.
+`results.jsonl` 파일을 읽어 각 논문의 `problem`, `methodology`, `keywords` 필드를 파악하고, 다음 두 가지 분류를 수행하여 Write 도구로 저장합니다.
 
-1. **문제(Problem) 클러스터링** → `problem.json`
-2. **해결 방식(Methodology) 클러스터링** → `method.json`
+1. **문제(Problem) 클러스터링** → `problem.json` (`problem` 필드 중심, `keywords` 참고)
+2. **해결 방식(Methodology) 클러스터링** → `method.json` (`methodology` + `keywords` 필드 중심)
 
 **주의**: 반드시 아래 형식을 준수해야 합니다. 클러스터 이름과 `summary` 필드는 `language`에 맞는 언어로 작성합니다.
 

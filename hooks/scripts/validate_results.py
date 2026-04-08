@@ -6,7 +6,8 @@ import json
 import os
 import sys
 
-REQUIRED_KEYS = {"filename", "title", "problem", "methodology", "limitation"}
+REQUIRED_KEYS = {"filename", "title", "research_type", "problem", "methodology", "keywords"}
+VALID_RESEARCH_TYPES = {"Method", "Empirical", "Qualitative", "Benchmark", "Survey"}
 
 
 def validate_file(filepath):
@@ -46,10 +47,18 @@ def validate_file(filepath):
             f"  실제: '{actual}'"
         )
 
-    for key in REQUIRED_KEYS:
+    rt = obj.get("research_type", "")
+    if rt not in VALID_RESEARCH_TYPES:
+        errors.append(f"[ERROR] {json_file}: 'research_type' 값이 유효하지 않습니다 — '{rt}' (허용값: {', '.join(sorted(VALID_RESEARCH_TYPES))})")
+
+    for key in REQUIRED_KEYS - {"keywords", "research_type"}:
         val = obj.get(key, "")
         if not isinstance(val, str) or not val.strip():
             errors.append(f"[ERROR] {json_file}: '{key}' 필드가 비어 있거나 문자열이 아닙니다")
+
+    kw = obj.get("keywords", None)
+    if not isinstance(kw, list) or len(kw) == 0:
+        errors.append(f"[ERROR] {json_file}: 'keywords' 필드가 비어 있거나 배열이 아닙니다")
 
     return errors
 
@@ -75,7 +84,7 @@ def main():
         for err in errors:
             print(err, file=sys.stderr)
         print(
-            "\n수정 방법: 필수 키(filename, title, problem, methodology, limitation)를 확인하고 수정한 뒤 다시 저장하세요.",
+            "\n수정 방법: 필수 키(filename, title, research_type, problem, methodology, keywords)를 확인하고 수정한 뒤 다시 저장하세요.",
             file=sys.stderr,
         )
         sys.exit(2)

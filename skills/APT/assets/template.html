@@ -92,11 +92,9 @@
         <main id="cluster-distribution" class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <!-- Chart Side -->
             <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 space-y-6">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between flex-wrap gap-3">
                     <h3 class="text-xl font-bold text-slate-800">Cluster Distribution</h3>
-                    <span
-                        class="text-xs font-bold text-orange-500 uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-full">Interactive
-                        Chart</span>
+                    <div class="flex flex-wrap gap-1.5" id="type-filter-btns"></div>
                 </div>
                 <div class="relative" id="chart-container">
                     <canvas id="insightChart"></canvas>
@@ -166,8 +164,18 @@
             return div.innerHTML;
         }
 
+        const TYPE_CONFIG = {  // fill/stroke는 트리와 공용, pill은 대시보드 Tailwind 클래스
+            Method:     { color: 'rgba(59,130,246,0.85)',  border: '#3b82f6', fill: '#dbeafe', stroke: '#3b82f6', pill: 'bg-blue-50 text-blue-500 border-blue-200' },
+            Empirical:  { color: 'rgba(34,197,94,0.85)',   border: '#22c55e', pill: 'bg-green-50 text-green-600 border-green-200' },
+            Qualitative:{ color: 'rgba(168,85,247,0.85)',  border: '#a855f7', pill: 'bg-purple-50 text-purple-500 border-purple-200' },
+            Benchmark:  { color: 'rgba(234,179,8,0.85)',   border: '#eab308', pill: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
+            Survey:     { color: 'rgba(100,116,139,0.85)', border: '#64748b', pill: 'bg-slate-100 text-slate-500 border-slate-200' },
+        };
+        const ALL_TYPES = Object.keys(TYPE_CONFIG);
+
         let myChart = null;
         let currentTab = 'problem';
+        let activeTypes = new Set(ALL_TYPES); // 빈 Set = 전체
 
         function initNavigation() {
             if (parentUrl) {
@@ -187,8 +195,46 @@
         function initDashboard() {
             document.getElementById('total-papers-counter').innerText = researchResults.length;
             initNavigation();
+            renderTypeFilters();
             renderChart();
             showAllPapers();
+        }
+
+        function renderTypeFilters() {
+            const container = document.getElementById('type-filter-btns');
+            container.innerHTML = '';
+            ALL_TYPES.forEach(type => {
+                const btn = document.createElement('button');
+                const cfg = TYPE_CONFIG[type];
+                btn.dataset.type = type;
+                btn.className = `text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border transition-all ${cfg.pill} opacity-100`;
+                btn.textContent = type;
+                btn.onclick = () => toggleTypeFilter(type);
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleTypeFilter(type) {
+            if (activeTypes.has(type)) {
+                activeTypes.delete(type);
+            } else {
+                activeTypes.add(type);
+            }
+            // 아무것도 선택 안 된 경우 전체 선택으로
+            if (activeTypes.size === 0) activeTypes = new Set(ALL_TYPES);
+            // 버튼 스타일 갱신
+            document.querySelectorAll('#type-filter-btns button').forEach(btn => {
+                const active = activeTypes.has(btn.dataset.type);
+                btn.style.opacity = active ? '1' : '0.3';
+            });
+            renderChart();
+            // 필터된 논문 수 업데이트
+            const filteredTotal = researchResults.filter(p => activeTypes.has(p.research_type || 'Method')).length;
+            document.getElementById('total-papers-counter').innerText = filteredTotal;
+            // 현재 표시 중인 목록도 갱신
+            const titleEl = document.getElementById('papers-section-title');
+            if (titleEl.innerText === 'All Papers') showAllPapers();
+            else showClusterPapers(titleEl.innerText);
         }
 
         function switchTab(type) {
@@ -201,59 +247,61 @@
             document.getElementById(inactiveId).classList.remove('text-slate-900');
 
             renderChart();
-            showAllPapers();  // 탭 전환 시 필터 해제
+            const filteredTotal = researchResults.filter(p => activeTypes.has(p.research_type || 'Method')).length;
+            document.getElementById('total-papers-counter').innerText = filteredTotal;
+            showAllPapers();
         }
 
         function renderChart() {
             const ctx = document.getElementById('insightChart').getContext('2d');
             const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
             const labels = Object.keys(groups);
-            const dataCounts = labels.map(label => groups[label].papers.length);
 
             const chartH = Math.max(250, labels.length * 50);
             document.getElementById('chart-container').style.height = chartH + 'px';
 
             if (myChart) myChart.destroy();
 
+            // 활성 타입별 stacked dataset
+            const datasets = ALL_TYPES.filter(t => activeTypes.has(t)).map(type => ({
+                label: type,
+                data: labels.map(label =>
+                    groups[label].papers.filter(p => (p.research_type || 'Method') === type).length
+                ),
+                backgroundColor: TYPE_CONFIG[type].color,
+                borderColor: TYPE_CONFIG[type].border,
+                borderWidth: 0,
+                borderRadius: 6,
+                barThickness: 28,
+            }));
+
             myChart = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Number of Papers',
-                        data: dataCounts,
-                        backgroundColor: 'rgba(249, 115, 22, 0.8)',
-                        hoverBackgroundColor: '#f97316',
-                        borderRadius: 12,
-                        barThickness: 32
-                    }]
-                },
+                data: { labels, datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: 'y', // Horizontal bars for better readability
+                    indexAxis: 'y',
                     plugins: {
-                        legend: { display: false },
+                        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } },
                         tooltip: {
                             backgroundColor: '#1e293b',
                             padding: 12,
-                            titleFont: { size: 14, weight: 'bold' },
+                            titleFont: { size: 13, weight: 'bold' },
                             cornerRadius: 8
                         }
                     },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { stepSize: 1, font: { weight: 'bold' } }
-                        },
+                        x: { stacked: true, grid: { display: false }, ticks: { stepSize: 1, font: { weight: 'bold' } } },
                         y: {
+                            stacked: true,
                             grid: { borderDash: [5, 5], color: '#e2e8f0' },
                             ticks: {
                                 font: { size: 12, weight: '600' },
                                 color: '#64748b',
-                                callback: function (value) {
+                                callback: function(value) {
                                     const label = this.getLabelForValue(value);
-                                    return label.length > 20 ? label.substr(0, 20) + '...' : label;
+                                    return label.length > 22 ? label.substr(0, 22) + '…' : label;
                                 }
                             }
                         }
@@ -262,7 +310,15 @@
                         if (activeElements.length > 0) {
                             const index = activeElements[0].index;
                             const clusterName = labels[index];
-                            updateDetailView(clusterName);
+                            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
+                            const cluster = groups[clusterName];
+                            // 사이드 요약 카드만 업데이트, 스크롤 이동 없음
+                            document.getElementById('selected-cluster-name').innerText = clusterName;
+                            document.getElementById('selected-cluster-summary').innerText = cluster?.summary || '';
+                            const subLinkEl = document.getElementById('sub-cluster-link');
+                            if (cluster?.sub_page_url) {
+                                subLinkEl.innerHTML = `<a href="${cluster.sub_page_url}" class="inline-flex items-center gap-2 text-white/80 hover:text-white text-sm font-bold transition-colors border border-white/30 hover:border-white/60 rounded-xl px-4 py-2 hover:bg-white/10">세부 클러스터 보기 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></a>`;
+                            } else { subLinkEl.innerHTML = ''; }
                         }
                     }
                 }
@@ -273,9 +329,12 @@
             const card = document.createElement('div');
             card.className = 'bg-white p-8 rounded-[2rem] card-shadow border border-slate-100 space-y-4 animate-slide-up hover:border-orange-200 transition-colors cursor-default';
             card.innerHTML = `
-                <div class="flex flex-col space-y-1">
-                    <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 self-start px-2 py-0.5 rounded-md">${escapeHTML(paper.filename)}</span>
-                    <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${escapeHTML(paper.title)}</h6>
+                <div class="flex items-start justify-between gap-2">
+                    <div class="space-y-1 flex-1 min-w-0">
+                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-50 px-2 py-0.5 rounded-md">${escapeHTML(paper.filename)}</span>
+                        <h6 class="text-xl font-bold text-slate-800 leading-tight pt-1">${escapeHTML(paper.title)}</h6>
+                    </div>
+                    <span class="flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${TYPE_CONFIG[paper.research_type]?.pill || 'bg-slate-100 text-slate-400 border-slate-200'}">${escapeHTML(paper.research_type || '—')}</span>
                 </div>
                 <div class="space-y-4 pt-2">
                     <div class="bg-slate-50 p-4 rounded-2xl">
@@ -286,14 +345,17 @@
                         <p class="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 italic">Key Methodology (해결 방법)</p>
                         <p class="text-sm text-slate-700 leading-relaxed font-medium">${escapeHTML(paper.methodology)}</p>
                     </div>
-                    ${paper.limitation ? `
-                    <div class="p-4 border border-slate-100 rounded-2xl">
-                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 italic text-right">Trade-off / Limitation (한계점)</p>
-                        <p class="text-xs text-slate-400 leading-relaxed text-right">${escapeHTML(paper.limitation)}</p>
+                    ${paper.keywords?.length ? `
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        ${paper.keywords.map(k => `<span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">${escapeHTML(k)}</span>`).join('')}
                     </div>` : ''}
                 </div>
             `;
             return card;
+        }
+
+        function filteredPapers(papers) {
+            return papers.filter(p => activeTypes.has(p.research_type || 'Method'));
         }
 
         function showAllPapers() {
@@ -304,16 +366,18 @@
             document.getElementById('show-all-btn').classList.add('hidden');
 
             for (const [clusterName, cluster] of Object.entries(groups)) {
+                const papers = filteredPapers(cluster.papers);
+                if (!papers.length) continue;
                 const heading = document.createElement('div');
                 heading.id = 'cluster-' + clusterName.replace(/\s+/g, '-');
                 heading.className = 'md:col-span-2 flex items-center gap-4 pt-4';
                 heading.innerHTML = `
                     <h4 class="text-lg font-extrabold text-slate-700 flex-shrink-0">${escapeHTML(clusterName)}</h4>
                     <div class="h-0.5 flex-grow bg-orange-100 rounded-full"></div>
-                    <span class="text-xs font-bold text-orange-400 bg-orange-50 px-2 py-1 rounded-lg flex-shrink-0">${cluster.papers.length} papers</span>
+                    <span class="text-xs font-bold text-orange-400 bg-orange-50 px-2 py-1 rounded-lg flex-shrink-0">${papers.length} papers</span>
                 `;
                 container.appendChild(heading);
-                cluster.papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
+                papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
             }
 
             document.getElementById('selected-cluster-name').innerText = 'Cluster Details';
@@ -326,12 +390,13 @@
             const cluster = groups[clusterName];
             if (!cluster) return;
 
+            const papers = filteredPapers(cluster.papers);
             const container = document.getElementById('paper-list-container');
             container.innerHTML = '';
             document.getElementById('papers-section-title').innerText = clusterName;
             document.getElementById('show-all-btn').classList.remove('hidden');
 
-            cluster.papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
+            papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
 
             document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }

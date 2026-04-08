@@ -50,8 +50,10 @@ def paper_leaf(filename, results_map):
     return {
         'name': paper.get('title', filename),
         'filename': filename,
+        'research_type': paper.get('research_type', ''),
         'count': 0,
         'summary': paper.get('problem', ''),
+        'keywords': paper.get('keywords', []),
         'children': [],
         'is_paper': True,
     }
