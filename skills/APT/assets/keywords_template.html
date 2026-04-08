@@ -23,30 +23,30 @@
 <body class="min-h-screen p-6 md:p-12">
 <div class="max-w-7xl mx-auto space-y-8">
 
-    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-slate-200 pb-8">
+    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div class="space-y-1">
-            <h1 class="text-4xl font-extrabold tracking-tighter text-slate-900 flex items-center gap-3">
-                <span class="w-10 h-10 accent-gradient rounded-xl shadow-lg shadow-orange-200"></span>
-                Keyword Explorer
+            <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tighter text-slate-900 flex items-center gap-3">
+                <span class="w-8 h-8 sm:w-10 sm:h-10 accent-gradient rounded-xl shadow-lg shadow-orange-200 flex-shrink-0"></span>
+                <span class="min-w-0 break-words">Keyword Explorer</span>
             </h1>
-            <p class="text-slate-400 font-medium tracking-tight">Research keywords by paper type</p>
+            <p class="text-slate-400 font-medium tracking-tight text-sm">Research keywords by paper type</p>
         </div>
-        <div class="flex items-center gap-3">
-            <a href="index.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                Dashboard
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="index.html" class="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white border border-slate-100 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span class="hidden sm:inline">Dashboard</span>
             </a>
-            <a href="tree.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                Tree
+            <a href="tree.html" class="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white border border-slate-100 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                <span class="hidden sm:inline">Tree</span>
             </a>
-            <nav class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100" id="type-tabs"></nav>
+            <div id="type-filter" class="flex flex-wrap gap-1.5"></div>
         </div>
     </header>
 
-    <div class="flex flex-col lg:flex-row gap-8 items-start">
+    <div class="flex flex-col lg:flex-row gap-6 items-start">
         <!-- Keyword cloud -->
-        <div class="flex-grow bg-white rounded-[2.5rem] card-shadow border border-slate-100 p-8 space-y-6">
+        <div class="flex-grow bg-white rounded-[2rem] sm:rounded-[2.5rem] card-shadow border border-slate-100 p-5 sm:p-8 space-y-5">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-bold text-slate-800">Keywords <span class="text-slate-400 font-normal text-sm" id="kw-count"></span></h3>
                 <button onclick="clearSelection()" id="clear-btn" class="hidden text-xs font-bold text-orange-500 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-full transition-colors">선택 해제</button>
@@ -88,41 +88,47 @@
         Survey:     { pill: 'bg-slate-100 text-slate-500 border-slate-200',  kw: '#f1f5f9', kwBorder: '#64748b', kwText: '#334155' },
     };
 
-    let currentType = 'All';
-    let selectedKeyword = null;
+    const ALL_TYPES = Object.keys(TYPE_CONFIG).filter(t => t !== 'All');
+    let activeTypes = new Set(ALL_TYPES);
+    let selectedKeywords = new Set();
 
-    // 타입 탭 생성
-    function initTabs() {
-        const nav = document.getElementById('type-tabs');
-        Object.keys(TYPE_CONFIG).forEach((type, i) => {
+    // 타입 토글 버튼 생성
+    function initTypeFilter() {
+        const el = document.getElementById('type-filter');
+        ALL_TYPES.forEach(type => {
             const btn = document.createElement('button');
-            btn.id = 'tab-' + type;
-            btn.className = `px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${i === 0 ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`;
+            btn.dataset.type = type;
+            btn.className = `text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border transition-all ${TYPE_CONFIG[type].pill}`;
             btn.textContent = type;
-            btn.onclick = () => switchType(type);
-            nav.appendChild(btn);
+            btn.onclick = () => toggleType(type);
+            el.appendChild(btn);
         });
     }
 
-    function switchType(type) {
-        currentType = type;
-        selectedKeyword = null;
-        Object.keys(TYPE_CONFIG).forEach(t => {
-            const btn = document.getElementById('tab-' + t);
-            btn.classList.toggle('tab-active', t === type);
-            btn.classList.toggle('text-slate-400', t !== type);
-        });
+    function toggleType(type) {
+        if (activeTypes.has(type)) {
+            activeTypes.delete(type);
+            if (activeTypes.size === 0) activeTypes = new Set(ALL_TYPES);
+        } else {
+            activeTypes.add(type);
+        }
+        selectedKeywords.clear();
+        updateTypeButtons();
         renderCloud();
         renderPapers(getPapers());
     }
 
-    // 현재 타입에 해당하는 논문 목록
+    function updateTypeButtons() {
+        document.querySelectorAll('#type-filter button').forEach(btn => {
+            btn.style.opacity = activeTypes.has(btn.dataset.type) ? '1' : '0.3';
+        });
+    }
+
+    // 활성 타입 + 선택된 키워드들에 해당하는 논문 목록
     function getPapers() {
-        const papers = currentType === 'All'
-            ? researchResults
-            : researchResults.filter(p => p.research_type === currentType);
-        if (!selectedKeyword) return papers;
-        return papers.filter(p => (p.keywords || []).includes(selectedKeyword));
+        let papers = researchResults.filter(p => activeTypes.has(p.research_type));
+        if (selectedKeywords.size === 0) return papers;
+        return papers.filter(p => [...selectedKeywords].every(kw => (p.keywords || []).includes(kw)));
     }
 
     // 키워드 빈도 계산
@@ -143,7 +149,9 @@
         const freq = getKeywordFreqs(papers);
         const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
         const max = sorted[0]?.[1] || 1;
-        const cfg = TYPE_CONFIG[currentType] || TYPE_CONFIG['All'];
+        const cfg = activeTypes.size === 1
+            ? TYPE_CONFIG[[...activeTypes][0]]
+            : TYPE_CONFIG['All'];
 
         document.getElementById('kw-count').textContent = `${sorted.length}개`;
         document.getElementById('kw-count').textContent = `— ${sorted.length}개`;
@@ -153,28 +161,27 @@
         sorted.forEach(([kw, cnt]) => {
             const pill = document.createElement('span');
             const sz = kwSize(cnt, max);
-            pill.className = 'kw-pill' + (kw === selectedKeyword ? ' selected' : '');
-            pill.style.cssText = `font-size:${sz}px; padding:${sz < 16 ? '3px 10px' : '5px 14px'}; background:${cfg.kw}; border-color:${cfg.kwBorder}; color:${cfg.kwText};`;
+            const isSelected = selectedKeywords.has(kw);
+            pill.className = 'kw-pill' + (isSelected ? ' selected' : '');
+            const opacity = selectedKeywords.size > 0 && !isSelected ? '0.35' : '1';
+            pill.style.cssText = `font-size:${sz}px; padding:${sz < 16 ? '3px 10px' : '5px 14px'}; background:${cfg.kw}; border-color:${cfg.kwBorder}; color:${cfg.kwText}; opacity:${opacity};`;
             pill.innerHTML = `${kw} <span style="font-size:${Math.max(sz-3,9)}px;opacity:0.6;">${cnt}</span>`;
-            pill.onclick = () => selectKeyword(kw, pill);
+            pill.onclick = () => toggleKeyword(kw);
             cloud.appendChild(pill);
         });
 
-        document.getElementById('clear-btn').classList.toggle('hidden', !selectedKeyword);
+        document.getElementById('clear-btn').classList.toggle('hidden', selectedKeywords.size === 0);
     }
 
-    function selectKeyword(kw, pillEl) {
-        if (selectedKeyword === kw) {
-            selectedKeyword = null;
-        } else {
-            selectedKeyword = kw;
-        }
+    function toggleKeyword(kw) {
+        if (selectedKeywords.has(kw)) selectedKeywords.delete(kw);
+        else selectedKeywords.add(kw);
         renderCloud();
         renderPapers(getPapers());
     }
 
     function clearSelection() {
-        selectedKeyword = null;
+        selectedKeywords.clear();
         renderCloud();
         renderPapers(getPapers());
     }
@@ -192,7 +199,7 @@
             const card = document.createElement('div');
             card.className = 'bg-white p-4 rounded-2xl card-shadow border border-slate-100 space-y-2 animate-slide-up hover:border-orange-200 transition-colors';
             const kws = (p.keywords || []).map(k => {
-                const active = k === selectedKeyword;
+                const active = selectedKeywords.has(k);
                 return `<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${active ? 'bg-orange-100 text-orange-600 border-orange-300' : 'bg-slate-100 text-slate-500 border-slate-200'}">${k}</span>`;
             }).join('');
             card.innerHTML = `
@@ -206,7 +213,7 @@
         });
     }
 
-    initTabs();
+    initTypeFilter();
     renderCloud();
     renderPapers(getPapers());
 </script>
