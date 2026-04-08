@@ -133,7 +133,9 @@
         function maxLeaves(d) { if (!d || !d.children || !d.children.length) return 1; return d.children.reduce((s, c) => s + maxLeaves(c), 0); }
         const maxNodes = Math.max(countNodes(problemTreeData), countNodes(methodTreeData), 1);
         const leafCount = Math.max(maxLeaves(problemTreeData), maxLeaves(methodTreeData), 1);
-        const canvasSize = Math.max(300, Math.min(800, 150 + leafCount * 12));
+        // 리프 노드 하나당 최소 22px 호 길이 보장 → 겹침 방지
+        const minRadius = Math.max(180, Math.ceil((leafCount * 22) / (2 * Math.PI)));
+        const canvasSize = 2 * (minRadius + 120);
 
         // SVG는 뷰포트 크기에 맞추고, 렌더 후 fitView로 줌 조정
         function getViewSize() {
@@ -207,37 +209,44 @@
             const root = d3.hierarchy(data);
             tree(root);
 
-            // 트리 깊이에 따라 레벨 반지름을 동적 계산
+            // 깊이별 반지름: 전체 반지름을 maxDepth로 균등 분할
             const maxDepth = d3.max(root.descendants(), d => d.depth) || 1;
             const ringStep = radius / maxDepth;
             root.each(d => { if (d.depth > 0) d.y = ringStep * d.depth; });
 
-            // ── 노드 충돌 해소 (같은 깊이의 노드끼리 각도 밀어냄) ──
-            const PADDING = 4;
-            for (let iter = 0; iter < 60; iter++) {
-                let moved = false;
-                const nodes_arr = root.descendants().filter(d => d.depth > 0);
-                for (let i = 0; i < nodes_arr.length; i++) {
-                    for (let j = i + 1; j < nodes_arr.length; j++) {
-                        const a = nodes_arr[i], b = nodes_arr[j];
-                        const [ax, ay] = [a.y * Math.sin(a.x), -a.y * Math.cos(a.x)];
-                        const [bx, by] = [b.y * Math.sin(b.x), -b.y * Math.cos(b.x)];
-                        const dx = bx - ax, dy = by - ay;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        const minDist = nodeRadius(a) + nodeRadius(b) + PADDING;
+            // ── 충돌 해소: 부모 섹터를 유지하면서 형제끼리만 밀어냄 (bottom-up) ──
+            // 이 방식은 자식이 항상 부모 방향으로 뻗어나가도록 트리 구조를 보존함
+            const GAP = 6; // 노드 간 최소 여백 px
+            function enforceSpacing(node) {
+                if (!node.children || !node.children.length) return;
+                // 자식 먼저 재귀 처리
+                node.children.forEach(enforceSpacing);
+
+                // 형제 노드끼리만 각도 밀어냄 (정렬된 순서로)
+                const ch = node.children;
+                for (let iter = 0; iter < 100; iter++) {
+                    let moved = false;
+                    for (let i = 0; i < ch.length - 1; i++) {
+                        const a = ch[i], b = ch[i + 1];
+                        const ax = a.y * Math.sin(a.x), ay = -a.y * Math.cos(a.x);
+                        const bx = b.y * Math.sin(b.x), by = -b.y * Math.cos(b.x);
+                        const dist = Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2);
+                        const minDist = nodeRadius(a) + nodeRadius(b) + GAP;
                         if (dist < minDist && dist > 0) {
-                            const overlap = (minDist - dist) / 2;
-                            const angle = Math.atan2(dy, dx);
-                            // 각도(x)를 조정하여 밀어냄
-                            const push = overlap / Math.max(a.y, b.y, 1);
-                            a.x -= push;
-                            b.x += push;
+                            const need = (minDist - dist) / 2;
+                            a.x -= need / Math.max(a.y, 1);
+                            b.x += need / Math.max(b.y, 1);
                             moved = true;
                         }
                     }
+                    if (!moved) break;
                 }
-                if (!moved) break;
+                // 부모 각도를 자식들 중간으로 재조정 (부모 섹터 유지)
+                if (node.depth > 0) {
+                    node.x = (ch[0].x + ch[ch.length - 1].x) / 2;
+                }
             }
+            enforceSpacing(root);
 
             // 중복 논문 계산
             const allPaperNodes = root.descendants().filter(d => d.data.is_paper && d.data.filename);
@@ -245,13 +254,19 @@
             const dupFilenames = new Set();
             byFilename.forEach((nodes, fn) => { if (nodes.length > 1) dupFilenames.add(fn); });
 
-            // Links
+            // Links - straight lines to avoid bezier crossings
             g.append('g')
                 .selectAll('path').data(root.links()).join('path')
                 .attr('class', 'link')
-                .attr('d', d3.linkRadial().angle(d => d.x).radius(d => d.y));
+                .attr('d', d => {
+                    const [px, py] = toXY(d.source);
+                    const [cx2, cy2] = toXY(d.target);
+                    return `M${px.toFixed(1)},${py.toFixed(1)} L${cx2.toFixed(1)},${cy2.toFixed(1)}`;
+                });
 
-            // 중복 논문 연결선
+            // 중복 논문 연결선 - 외부 호를 따라 빙 돌아가게
+            const maxLeafR = d3.max(root.descendants(), d => d.y) || radius;
+            const outerR = maxLeafR + 70;
             const dupLayer = g.append('g').attr('class', 'dup-links');
             const dupLinksByFile = new Map();
             byFilename.forEach((nodes, filename) => {
@@ -261,14 +276,20 @@
                     for (let j = i + 1; j < nodes.length; j++) {
                         const [ax, ay] = toXY(nodes[i]);
                         const [bx, by] = toXY(nodes[j]);
-                        const mx = (ax + bx) / 2, my = (ay + by) / 2;
-                        const dist = Math.sqrt(mx * mx + my * my) || 1;
-                        const push = 50;
-                        const cpx = mx + (mx / dist) * push;
-                        const cpy = my + (my / dist) * push;
+                        // 노드 방향을 외부 링으로 투영
+                        const rA = Math.sqrt(ax*ax + ay*ay) || 1;
+                        const rB = Math.sqrt(bx*bx + by*by) || 1;
+                        const oAx = (outerR * ax / rA).toFixed(1), oAy = (outerR * ay / rA).toFixed(1);
+                        const oBx = (outerR * bx / rB).toFixed(1), oBy = (outerR * by / rB).toFixed(1);
+                        // tree 각도 증가 = SVG 시계방향(sweep=1), 짧은 호로
+                        let da = nodes[j].x - nodes[i].x;
+                        while (da > Math.PI) da -= 2 * Math.PI;
+                        while (da < -Math.PI) da += 2 * Math.PI;
+                        const sweep = da >= 0 ? 1 : 0;
+                        const pathD = `M${ax.toFixed(1)},${ay.toFixed(1)} L${oAx},${oAy} A${outerR},${outerR} 0 0 ${sweep} ${oBx},${oBy} L${bx.toFixed(1)},${by.toFixed(1)}`;
                         links.push(dupLayer.append('path')
                             .attr('class', 'dup-link')
-                            .attr('d', `M${ax},${ay} Q${cpx},${cpy} ${bx},${by}`));
+                            .attr('d', pathD));
                     }
                 }
                 dupLinksByFile.set(filename, links);

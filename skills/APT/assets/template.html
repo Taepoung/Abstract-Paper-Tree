@@ -134,8 +134,9 @@
         <!-- Detailed Paper List (Drill-down) -->
         <section id="detail-section" class="space-y-8 pb-20">
             <div class="flex items-center gap-4 px-4">
-                <h3 class="text-2xl font-bold text-slate-800">All Papers</h3>
+                <h3 class="text-2xl font-bold text-slate-800" id="papers-section-title">All Papers</h3>
                 <div class="h-1 flex-grow bg-slate-100 rounded-full"></div>
+                <button id="show-all-btn" onclick="showAllPapers()" class="hidden text-xs font-bold text-orange-500 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-full transition-colors">전체 보기 ✕</button>
             </div>
 
             <div id="paper-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -195,13 +196,12 @@
             document.getElementById('tab-problem').classList.toggle('tab-active', type === 'problem');
             document.getElementById('tab-methodology').classList.toggle('tab-active', type === 'methodology');
 
-            // Style update for inactive tab
             const inactiveId = type === 'problem' ? 'tab-methodology' : 'tab-problem';
             document.getElementById(inactiveId).classList.add('text-slate-400');
             document.getElementById(inactiveId).classList.remove('text-slate-900');
 
             renderChart();
-            showAllPapers();
+            showAllPapers();  // 탭 전환 시 필터 해제
         }
 
         function renderChart() {
@@ -300,9 +300,10 @@
             const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
             const container = document.getElementById('paper-list-container');
             container.innerHTML = '';
+            document.getElementById('papers-section-title').innerText = 'All Papers';
+            document.getElementById('show-all-btn').classList.add('hidden');
 
             for (const [clusterName, cluster] of Object.entries(groups)) {
-                // Cluster heading
                 const heading = document.createElement('div');
                 heading.id = 'cluster-' + clusterName.replace(/\s+/g, '-');
                 heading.className = 'md:col-span-2 flex items-center gap-4 pt-4';
@@ -312,25 +313,36 @@
                     <span class="text-xs font-bold text-orange-400 bg-orange-50 px-2 py-1 rounded-lg flex-shrink-0">${cluster.papers.length} papers</span>
                 `;
                 container.appendChild(heading);
-
                 cluster.papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
             }
 
-            // Reset summary card
             document.getElementById('selected-cluster-name').innerText = 'Cluster Details';
             document.getElementById('selected-cluster-summary').innerText = '차트의 막대를 클릭하면 해당 영역의 핵심 요약이 여기에 표시됩니다.';
             document.getElementById('sub-cluster-link').innerHTML = '';
+        }
+
+        function showClusterPapers(clusterName) {
+            const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
+            const cluster = groups[clusterName];
+            if (!cluster) return;
+
+            const container = document.getElementById('paper-list-container');
+            container.innerHTML = '';
+            document.getElementById('papers-section-title').innerText = clusterName;
+            document.getElementById('show-all-btn').classList.remove('hidden');
+
+            cluster.papers.forEach(paper => container.appendChild(buildPaperCard(paper)));
+
+            document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function updateDetailView(clusterName) {
             const groups = currentTab === 'problem' ? problemGroups : methodologyGroups;
             const cluster = groups[clusterName];
 
-            // Update Summary Card
             document.getElementById('selected-cluster-name').innerText = clusterName;
             document.getElementById('selected-cluster-summary').innerText = cluster.summary || "이 연구 영역에 속한 논문들의 흐름입니다.";
 
-            // Sub-cluster drill-down link
             const subLinkEl = document.getElementById('sub-cluster-link');
             if (cluster.sub_page_url) {
                 subLinkEl.innerHTML = `<a href="${cluster.sub_page_url}" class="inline-flex items-center gap-2 text-white/80 hover:text-white text-sm font-bold transition-colors border border-white/30 hover:border-white/60 rounded-xl px-4 py-2 hover:bg-white/10">세부 클러스터 보기 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></a>`;
@@ -338,11 +350,7 @@
                 subLinkEl.innerHTML = '';
             }
 
-            // Scroll to the cluster section
-            const target = document.getElementById('cluster-' + clusterName.replace(/\s+/g, '-'));
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            showClusterPapers(clusterName);
         }
 
         // Initialize display
