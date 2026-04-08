@@ -11,7 +11,7 @@ import sys
 
 
 def main():
-    output_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else '.')
+    output_dir = os.path.abspath('.')
     results_dir = os.path.join(output_dir, 'results')
 
     if not os.path.isdir(results_dir):

@@ -74,7 +74,7 @@ def main():
                 for obj in sub_results:
                     f.write(json.dumps(obj, ensure_ascii=False) + '\n')
 
-            print(f"{sub_dir} ({len(sub_results)} papers)")
+            print(f"{os.path.relpath(sub_dir)} ({len(sub_results)} papers)")
             total += 1
 
     print(f"Done: {total} sub-clusters extracted.")

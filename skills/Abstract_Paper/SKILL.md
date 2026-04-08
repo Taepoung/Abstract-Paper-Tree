@@ -14,7 +14,7 @@ argument-hint: "논문 파일 이름 [언어(default:korean)]"
 ### `parse_pdf.py` — PDF 본문 추출
 
 ```
-사용법: python skills/Abstract_Paper/scripts/parse_pdf.py <논문파일이름.pdf>
+사용법: python "${CLAUDE_PLUGIN_ROOT}/skills/Abstract_Paper/scripts/parse_pdf.py" <논문파일이름.pdf>
 입력:  현재 디렉토리의 PDF 파일명
 출력:  .parsed/{PDF파일명}_main.txt (본문, References 이전까지)
 stdout 1행: 본문 파일 절대경로
@@ -25,10 +25,12 @@ stdout 2행: 추출 결과 요약
 
 1.  **논문 파싱**
 
-현재 작업 디렉토리에서 주어진 논문 파일을 찾아서 **반드시 Bash 도구로 다음 명령어를 실행**합니다. Read 도구로 스크립트를 읽는 것은 금지됩니다.
+`.parsed/{논문파일명}_main.txt`가 이미 존재하면 스크립트를 실행하지 않고 바로 Read 도구로 읽는다.
+
+존재하지 않으면 **반드시 Bash 도구로 다음 명령어를 실행**합니다. Read 도구로 스크립트를 읽는 것은 금지됩니다.
 
 ```bash
-python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
+python "${CLAUDE_PLUGIN_ROOT}/skills/Abstract_Paper/scripts/parse_pdf.py" [논문파일이름.pdf]
 ```
 
 스크립트는 본문(References 이전)을 현재 디렉토리의 `.parsed/`에 저장합니다.

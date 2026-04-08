@@ -14,7 +14,7 @@ import sys
 
 
 def main():
-    output_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else '.')
+    output_dir = os.path.abspath('.')
 
     # PDF 목록
     pdfs = sorted(f for f in os.listdir(output_dir)
