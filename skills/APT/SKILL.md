@@ -10,8 +10,6 @@ argument-hint: "[언어(default:korean)] [재귀깊이(default:1)]"
 
 ## 도구 사용 규칙
 
-- Bash 도구는 **Python 스크립트 실행 및 `cd`** 전용 (훅이 강제). 그 외 작업은 전용 도구(Glob, Read, Write 등)를 사용한다.
-- `.py` 파일은 Read로 읽지 않는다 (훅이 차단). 아래 레퍼런스를 참고하여 실행만 한다.
 - 스크립트는 **현재 작업 디렉토리(논문 디렉토리) 기준**으로 동작한다. **절대 경로를 직접 생성하거나 인자로 전달하지 않는다.** 인자 없이 실행한다.
   - 예외: 재귀 클러스터링(5-3)에서 서브 디렉토리를 처리할 때는 `extract_subcluster.py`의 stdout에 출력된 경로를 그대로 사용한다.
 
@@ -90,7 +88,9 @@ python skills/APT/scripts/merge_results.py
 1. **문제(Problem) 클러스터링** → `problem.json` (`problem` 필드 중심, `keywords` 참고)
 2. **해결 방식(Methodology) 클러스터링** → `method.json` (`methodology` + `keywords` 필드 중심)
 
-**주의**: 반드시 아래 형식을 준수해야 합니다. 클러스터 이름과 `summary` 필드는 `language`에 맞는 언어로 작성합니다.
+**필수 조건**: `results.jsonl`의 **모든** 논문이 하나 이상의 클러스터에 반드시 포함되어야 한다. Write 전에 `filenames` 전체를 직접 대조하여 누락이 없음을 확인한다. 누락이 있으면 저장하지 말고 먼저 클러스터에 추가한다. 저장 후 훅이 누락을 감지하면 즉시 수정한다.
+
+**형식**: 반드시 아래 형식을 준수해야 합니다. 클러스터 이름과 `summary` 필드는 `language`에 맞는 언어로 작성합니다.
 
 ```json
 {
