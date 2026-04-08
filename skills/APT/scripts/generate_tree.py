@@ -208,7 +208,8 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', nargs='?', default='.')
     args = parser.parse_args()
 
-    if not os.path.isdir(args.output_dir):
-        print(f"Error: '{args.output_dir}' is not a valid directory.")
+    output_dir = os.path.abspath(args.output_dir)
+    if not os.path.isdir(output_dir):
+        print(f"Error: '{output_dir}' is not a valid directory.")
         sys.exit(1)
-    generate_tree(args.output_dir)
+    generate_tree(output_dir)

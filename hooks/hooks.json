@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'CMD=$(cat | jq -r \".tool_input.command\"); if ! echo \"$CMD\" | grep -qE \"^python\\s\"; then echo \"BLOCKED: Bash는 Python 스크립트 실행에만 사용하세요\" >&2; exit 2; fi'"
+            "command": "bash -c 'CMD=$(cat | jq -r \".tool_input.command\"); if ! echo \"$CMD\" | grep -qE \"^(python|cd)(\\s|$)\"; then echo \"BLOCKED: Bash는 Python 스크립트 실행 및 cd 명령에만 사용하세요\" >&2; exit 2; fi'"
           }
         ]
       }

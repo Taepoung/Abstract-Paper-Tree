@@ -66,7 +66,7 @@ def main():
         print("ERROR: PDF 파일을 찾을 수 없습니다.", file=sys.stderr)
         sys.exit(1)
 
-    print(pdf)
+    print(pdf, file=sys.stderr)
 
     out_dir = os.path.join(os.getcwd(), '.parsed')
     os.makedirs(out_dir, exist_ok=True)
@@ -84,7 +84,9 @@ def main():
     with open(main_path, "w", encoding="utf-8") as f:
         f.write(main_text)
 
-    print(f"본문: {main_path}")
+    os.remove(raw_path)
+
+    print(main_path)
     print(f"추출 완료 — 본문: {len(main_text)}자")
 
 

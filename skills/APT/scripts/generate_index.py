@@ -120,7 +120,8 @@ if __name__ == "__main__":
     parser.add_argument('--tree-url', default=None, dest='tree_url')
     args = parser.parse_args()
 
-    if not os.path.isdir(args.output_dir):
-        print(f"Error: '{args.output_dir}' is not a valid directory.")
+    output_dir = os.path.abspath(args.output_dir)
+    if not os.path.isdir(output_dir):
+        print(f"Error: '{output_dir}' is not a valid directory.")
         sys.exit(1)
-    generate_dashboard(args.output_dir, parent_url=args.parent_url, page_title=args.page_title, tree_url=args.tree_url)
+    generate_dashboard(output_dir, parent_url=args.parent_url, page_title=args.page_title, tree_url=args.tree_url)

@@ -22,7 +22,8 @@ argument-hint: "논문 파일 이름 [언어(default:korean)]"
 사용법: python skills/Abstract_Paper/scripts/parse_pdf.py <논문파일이름.pdf>
 입력:  현재 디렉토리의 PDF 파일명
 출력:  .parsed/{PDF파일명}_main.txt (본문, References 이전까지)
-stdout: PDF 경로, 본문 파일 경로, 추출 결과 요약
+stdout 1행: 본문 파일 절대경로
+stdout 2행: 추출 결과 요약
 ```
 
 ## 프로세스
@@ -38,7 +39,7 @@ python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 스크립트는 본문(References 이전)을 현재 디렉토리의 `.parsed/`에 저장합니다.
 - `.parsed/{PDF파일명}_main.txt` — 본문
 
-스크립트의 stdout에 파일의 전체 경로가 출력되므로, 이를 확인하여 본문 파일을 읽어 내용 분석에 사용합니다. Appendix는 읽지 않습니다.
+stdout **첫 번째 줄**이 본문 파일의 절대경로입니다. 이 경로를 Read 도구로 읽어 내용 분석에 사용합니다. Appendix는 읽지 않습니다.
 
 2.  **내용 분석**:
 

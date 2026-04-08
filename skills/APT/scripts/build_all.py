@@ -78,7 +78,7 @@ def build_recursive(directory, root_dir, parent_dir=None, page_title=None):
 
 
 def main():
-    output_dir = sys.argv[1] if len(sys.argv) > 1 else '.'
+    output_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else '.')
 
     if not os.path.isdir(output_dir):
         print(f"Error: '{output_dir}' is not a valid directory.", file=sys.stderr)

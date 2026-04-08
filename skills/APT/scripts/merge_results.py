@@ -11,16 +11,16 @@ import sys
 
 
 def main():
-    output_dir = sys.argv[1] if len(sys.argv) > 1 else '.'
+    output_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else '.')
     results_dir = os.path.join(output_dir, 'results')
 
     if not os.path.isdir(results_dir):
-        print(f"Error: '{results_dir}' not found.")
+        print(f"Error: '{results_dir}' not found.", file=sys.stderr)
         sys.exit(1)
 
     files = sorted(glob.glob(os.path.join(results_dir, '*.json')))
     if not files:
-        print(f"Error: No JSON files in '{results_dir}'.")
+        print(f"Error: No JSON files in '{results_dir}'.", file=sys.stderr)
         sys.exit(1)
 
     output_file = os.path.join(output_dir, 'results.jsonl')
