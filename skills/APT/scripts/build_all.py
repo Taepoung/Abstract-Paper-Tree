@@ -22,6 +22,7 @@ sys.path.insert(0, SCRIPT_DIR)
 import subprocess
 from generate_index import generate_dashboard
 from generate_tree import generate_tree
+from generate_keywords import generate_keywords
 
 
 def sanitize_dirname(name):
@@ -99,6 +100,7 @@ def main():
 
     # 3. 트리 시각화 생성
     generate_tree(output_dir)
+    generate_keywords(output_dir)
     print(f"Built: {os.path.join(output_dir, 'tree.html')}")
 
     print("Done.")

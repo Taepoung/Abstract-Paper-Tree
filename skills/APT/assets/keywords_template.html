@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyword Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .accent-gradient { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
+        .tab-active { color: #f97316; border-bottom: 3px solid #f97316; font-weight: 800; }
+        .kw-pill { cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; font-weight: 600; border: 1.5px solid; white-space: nowrap; }
+        .kw-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .kw-pill.selected { outline: 2.5px solid #f97316; outline-offset: 2px; }
+        @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+</head>
+
+<body class="min-h-screen p-6 md:p-12">
+<div class="max-w-7xl mx-auto space-y-8">
+
+    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-slate-200 pb-8">
+        <div class="space-y-1">
+            <h1 class="text-4xl font-extrabold tracking-tighter text-slate-900 flex items-center gap-3">
+                <span class="w-10 h-10 accent-gradient rounded-xl shadow-lg shadow-orange-200"></span>
+                Keyword Explorer
+            </h1>
+            <p class="text-slate-400 font-medium tracking-tight">Research keywords by paper type</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Dashboard
+            </a>
+            <a href="tree.html" class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all card-shadow">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Tree
+            </a>
+            <nav class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100" id="type-tabs"></nav>
+        </div>
+    </header>
+
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+        <!-- Keyword cloud -->
+        <div class="flex-grow bg-white rounded-[2.5rem] card-shadow border border-slate-100 p-8 space-y-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-slate-800">Keywords <span class="text-slate-400 font-normal text-sm" id="kw-count"></span></h3>
+                <button onclick="clearSelection()" id="clear-btn" class="hidden text-xs font-bold text-orange-500 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-full transition-colors">선택 해제</button>
+            </div>
+            <div id="keyword-cloud" class="flex flex-wrap gap-2 leading-relaxed"></div>
+        </div>
+
+        <!-- Paper list -->
+        <div class="lg:w-80 flex-shrink-0 space-y-4">
+            <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 flex items-center gap-4">
+                <div class="w-12 h-12 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-extrabold text-slate-900" id="paper-count">—</p>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Papers</p>
+                </div>
+            </div>
+            <div id="paper-list" class="space-y-3"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * DATA_INJECTION_POINT_START
+     */
+    const researchResults = [];
+    /**
+     * DATA_INJECTION_POINT_END
+     */
+
+    const TYPE_CONFIG = {
+        All:        { pill: 'bg-slate-100 text-slate-600 border-slate-200',  kw: '#f1f5f9', kwBorder: '#cbd5e1', kwText: '#475569' },
+        Method:     { pill: 'bg-blue-50 text-blue-500 border-blue-200',      kw: '#dbeafe', kwBorder: '#3b82f6', kwText: '#1d4ed8' },
+        Empirical:  { pill: 'bg-green-50 text-green-600 border-green-200',   kw: '#dcfce7', kwBorder: '#22c55e', kwText: '#15803d' },
+        Qualitative:{ pill: 'bg-purple-50 text-purple-500 border-purple-200',kw: '#f3e8ff', kwBorder: '#a855f7', kwText: '#7e22ce' },
+        Benchmark:  { pill: 'bg-yellow-50 text-yellow-600 border-yellow-200',kw: '#fef9c3', kwBorder: '#eab308', kwText: '#854d0e' },
+        Survey:     { pill: 'bg-slate-100 text-slate-500 border-slate-200',  kw: '#f1f5f9', kwBorder: '#64748b', kwText: '#334155' },
+    };
+
+    let currentType = 'All';
+    let selectedKeyword = null;
+
+    // 타입 탭 생성
+    function initTabs() {
+        const nav = document.getElementById('type-tabs');
+        Object.keys(TYPE_CONFIG).forEach((type, i) => {
+            const btn = document.createElement('button');
+            btn.id = 'tab-' + type;
+            btn.className = `px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${i === 0 ? 'tab-active' : 'text-slate-400 hover:text-slate-600'}`;
+            btn.textContent = type;
+            btn.onclick = () => switchType(type);
+            nav.appendChild(btn);
+        });
+    }
+
+    function switchType(type) {
+        currentType = type;
+        selectedKeyword = null;
+        Object.keys(TYPE_CONFIG).forEach(t => {
+            const btn = document.getElementById('tab-' + t);
+            btn.classList.toggle('tab-active', t === type);
+            btn.classList.toggle('text-slate-400', t !== type);
+        });
+        renderCloud();
+        renderPapers(getPapers());
+    }
+
+    // 현재 타입에 해당하는 논문 목록
+    function getPapers() {
+        const papers = currentType === 'All'
+            ? researchResults
+            : researchResults.filter(p => p.research_type === currentType);
+        if (!selectedKeyword) return papers;
+        return papers.filter(p => (p.keywords || []).includes(selectedKeyword));
+    }
+
+    // 키워드 빈도 계산
+    function getKeywordFreqs(papers) {
+        const freq = {};
+        papers.forEach(p => (p.keywords || []).forEach(k => { freq[k] = (freq[k] || 0) + 1; }));
+        return freq;
+    }
+
+    // 폰트 크기: 빈도 1~max → 12~28px
+    function kwSize(count, max) {
+        if (max <= 1) return 14;
+        return Math.round(12 + (count - 1) / (max - 1) * 16);
+    }
+
+    function renderCloud() {
+        const papers = getPapers();
+        const freq = getKeywordFreqs(papers);
+        const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+        const max = sorted[0]?.[1] || 1;
+        const cfg = TYPE_CONFIG[currentType] || TYPE_CONFIG['All'];
+
+        document.getElementById('kw-count').textContent = `${sorted.length}개`;
+        document.getElementById('kw-count').textContent = `— ${sorted.length}개`;
+
+        const cloud = document.getElementById('keyword-cloud');
+        cloud.innerHTML = '';
+        sorted.forEach(([kw, cnt]) => {
+            const pill = document.createElement('span');
+            const sz = kwSize(cnt, max);
+            pill.className = 'kw-pill' + (kw === selectedKeyword ? ' selected' : '');
+            pill.style.cssText = `font-size:${sz}px; padding:${sz < 16 ? '3px 10px' : '5px 14px'}; background:${cfg.kw}; border-color:${cfg.kwBorder}; color:${cfg.kwText};`;
+            pill.innerHTML = `${kw} <span style="font-size:${Math.max(sz-3,9)}px;opacity:0.6;">${cnt}</span>`;
+            pill.onclick = () => selectKeyword(kw, pill);
+            cloud.appendChild(pill);
+        });
+
+        document.getElementById('clear-btn').classList.toggle('hidden', !selectedKeyword);
+    }
+
+    function selectKeyword(kw, pillEl) {
+        if (selectedKeyword === kw) {
+            selectedKeyword = null;
+        } else {
+            selectedKeyword = kw;
+        }
+        renderCloud();
+        renderPapers(getPapers());
+    }
+
+    function clearSelection() {
+        selectedKeyword = null;
+        renderCloud();
+        renderPapers(getPapers());
+    }
+
+    function renderPapers(papers) {
+        document.getElementById('paper-count').textContent = papers.length;
+        const list = document.getElementById('paper-list');
+        list.innerHTML = '';
+        if (!papers.length) {
+            list.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">논문 없음</p>';
+            return;
+        }
+        papers.forEach(p => {
+            const typeCfg = TYPE_CONFIG[p.research_type] || TYPE_CONFIG['All'];
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-2xl card-shadow border border-slate-100 space-y-2 animate-slide-up hover:border-orange-200 transition-colors';
+            const kws = (p.keywords || []).map(k => {
+                const active = k === selectedKeyword;
+                return `<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${active ? 'bg-orange-100 text-orange-600 border-orange-300' : 'bg-slate-100 text-slate-500 border-slate-200'}">${k}</span>`;
+            }).join('');
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-bold text-slate-800 leading-snug flex-1">${p.title || p.filename}</p>
+                    <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border flex-shrink-0 ${typeCfg.pill}">${p.research_type || '—'}</span>
+                </div>
+                <p class="text-[10px] text-slate-400">${p.filename}</p>
+                <div class="flex flex-wrap gap-1 pt-1">${kws}</div>`;
+            list.appendChild(card);
+        });
+    }
+
+    initTabs();
+    renderCloud();
+    renderPapers(getPapers());
+</script>
+</body>
+</html>
