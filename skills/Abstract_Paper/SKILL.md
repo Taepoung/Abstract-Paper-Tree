@@ -9,11 +9,20 @@ argument-hint: "논문 파일 이름 [언어(default:korean)]"
 당신은 전문적인 학술 연구 에이전트입니다.
 당신의 임무는 PDF 논문에서 핵심 인사이트를 정밀하게 추출하여 구조화된 JSON 데이터를 생성하는 것입니다.
 
-## 프로세스
+## 스크립트 레퍼런스
 
-### ⚠️ 절대 규칙
-- Python 스크립트(`.py` 파일)는 **절대로 Read 도구로 읽지 않는다**. 반드시 Bash 도구로 **실행**만 한다.
-- 스크립트의 내부 코드를 확인하거나 분석하려는 시도를 하지 않는다.
+> Python 스크립트(`.py` 파일)는 **절대로 Read 도구로 읽지 않는다**. 아래 사용법을 참고하여 Bash 도구로 **실행**만 한다.
+
+### `parse_pdf.py` — PDF 본문 추출
+
+```
+사용법: python skills/Abstract_Paper/scripts/parse_pdf.py <논문파일이름.pdf>
+입력:  현재 디렉토리의 PDF 파일명
+출력:  {tmpdir}/{PDF파일명}_main.txt (본문, References 이전까지)
+stdout: PDF 경로, 본문 파일 경로, 추출 결과 요약
+```
+
+## 프로세스
 
 1.  **논문 파싱**
 
@@ -23,11 +32,10 @@ argument-hint: "논문 파일 이름 [언어(default:korean)]"
 python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 ```
 
-스크립트는 본문(References 이전)과 Appendix를 분리하여 시스템 임시 디렉토리에 PDF 파일명 기반으로 저장합니다.
+스크립트는 본문(References 이전)을 시스템 임시 디렉토리에 PDF 파일명 기반으로 저장합니다.
 - `{tmpdir}/{PDF파일명}_main.txt` — 본문
-- `{tmpdir}/{PDF파일명}_appendix.txt` — Appendix (없으면 빈 파일)
 
-스크립트의 stdout에 각 파일의 전체 경로가 출력되므로, 이를 확인하여 두 파일을 읽어 내용 분석에 사용합니다.
+스크립트의 stdout에 파일의 전체 경로가 출력되므로, 이를 확인하여 본문 파일을 읽어 내용 분석에 사용합니다. Appendix는 읽지 않습니다.
 
 2.  **내용 분석**:
 
@@ -48,10 +56,10 @@ python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 
 **problem**: 이 논문이 해결하려는 핵심 문제(core problem)를 한두 문장으로 직접적으로 서술한다.
 
-**methodology**: 아래 4가지를 모두 포함하는 하나의 문자열로 작성한다.
-1. **방법 이름 및 유래** — 제안하는 방법/프레임워크의 이름과 약자의 의미. 논문이 밝히지 않으면 "이름 유래는 논문에 명시되지 않음"으로 적는다. 논문이 통합 방법에 고유 이름을 붙이지 않았다면 임의로 만들지 않는다.
-2. **핵심 키워드** — 방법을 이해하는 데 필요한 개념 키워드 5~12개를 괄호 안에 나열한다.
-3. **개념적 계보** — 어떤 기존 개념/기법에서 파생·확장·대체되었는지 서술한다. 논문이 직접 밝힌 것과 추론한 것을 구분하여 표기한다.
+**methodology**: 문제를 해결하기 위해 어떤 접근법을 취했고, 어떤 방법을 제안했는가를 중심으로 서술한다. 아래 4가지를 모두 포함하는 하나의 문자열로 작성한다.
+1. **접근법** — 문제에 대해 어떤 관점에서 접근했는지, 핵심 아이디어가 무엇인지 서술한다. 기존 방법과의 차별점을 명확히 한다.
+2. **제안 방법** — 구체적으로 제안한 방법/프레임워크의 이름과 구조를 서술한다. 이름의 약자 의미가 있다면 포함하되, 논문이 고유 이름을 붙이지 않았다면 임의로 만들지 않는다.
+3. **핵심 키워드** — 방법을 이해하는 데 필요한 개념 키워드 5~12개를 괄호 안에 나열한다.
 4. **파이프라인** — 입력이 어떤 단계를 거쳐 최종 출력이 되는지 단계별로 서술한다. 각 단계는 "입력 → 처리(구체적 동사) → 출력"이 드러나야 하며 단계 간 산출물이 끊기지 않아야 한다.
 
 성능 수치, 벤치마크 비교, 실험 결과는 methodology에 쓰지 않는다.
@@ -76,30 +84,7 @@ python skills/Abstract_Paper/scripts/parse_pdf.py [논문파일이름.pdf]
 
 3.  **출력**:
 
-분석 결과 JSON을 **반드시 Bash 도구로 다음 명령어를 실행**하여 저장 스크립트에 파이프로 전달합니다. Read 도구로 스크립트를 읽는 것은 금지됩니다.
+분석 결과 JSON을 Write 도구로 `results/{파일명에서 .pdf를 뺀 이름}.json` 경로에 직접 저장합니다.
+(예: `attention_is_all_you_need.pdf` → `results/attention_is_all_you_need.json`)
 
-```bash
-python skills/Abstract_Paper/scripts/save_result.py << 'EOF'
-{
-  "filename": "논문파일이름.pdf",
-  "title": "...",
-  "problem": "...",
-  "methodology": "...",
-  "limitation": "..."
-}
-EOF
-```
-
-이후 다음의 메세지를 출력합니다
-
-|key|element|
-|---|---|
-|status|`success`, `error`|
-|reason|reason of error|
-
-```json
-{
-"status": "success",
-"reason": ""
-}
-```
+저장 후 훅이 자동으로 JSON 구조를 검증합니다. 검증 실패 시 오류 메시지를 확인하고 수정하여 다시 저장합니다.

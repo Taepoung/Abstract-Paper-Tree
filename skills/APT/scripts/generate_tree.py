@@ -57,6 +57,17 @@ def paper_leaf(filename, results_map):
     }
 
 
+def _collect_filenames(children):
+    """children 리스트에서 모든 논문 filename을 재귀적으로 수집."""
+    fns = set()
+    for child in children:
+        if child.get('is_paper'):
+            fns.add(child.get('filename', ''))
+        fns.update(_collect_filenames(child.get('children', [])))
+    return fns
+
+
+
 def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
     """problem.json 기반 트리 — 클러스터 계층 + 리프 클러스터에 논문 노드."""
     problem_file = os.path.join(output_dir, 'problem.json')
@@ -92,9 +103,10 @@ def build_problem_tree(output_dir, root_label='Research Map', results_map=None):
             if sub_tree and sub_tree['children']:
                 node['children'] = sub_tree['children']
 
-        # 리프 클러스터(서브 클러스터 없음)면 논문을 리프로 추가
-        if not node['children']:
-            for fn in info.get('filenames', []):
+        # 리프 클러스터(서브 없음)이거나 서브에서 누락된 논문을 리프로 추가
+        covered = _collect_filenames(node['children'])
+        for fn in info.get('filenames', []):
+            if fn not in covered:
                 node['children'].append(paper_leaf(fn, results_map))
 
         children.append(node)
@@ -143,9 +155,10 @@ def build_method_tree(output_dir, root_label='Research Map', results_map=None):
             if sub_tree and sub_tree['children']:
                 node['children'] = sub_tree['children']
 
-        # 리프 클러스터면 논문을 리프로 추가
-        if not node['children']:
-            for fn in info.get('filenames', []):
+        # 리프 클러스터(서브 없음)이거나 서브에서 누락된 논문을 리프로 추가
+        covered = _collect_filenames(node['children'])
+        for fn in info.get('filenames', []):
+            if fn not in covered:
                 node['children'].append(paper_leaf(fn, results_map))
 
         children.append(node)

@@ -15,7 +15,7 @@
         .tab-active { color: #f97316; border-bottom: 3px solid #f97316; font-weight: 800; }
         #tree-svg { cursor: grab; }
         #tree-svg:active { cursor: grabbing; }
-        .node.has-link { cursor: pointer; }
+        .node { cursor: pointer; }
         .node circle { transition: r 0.15s ease; }
         .node:hover circle { filter: drop-shadow(0 0 6px rgba(249,115,22,0.5)); }
         .link { fill: none; stroke: #e2e8f0; stroke-width: 1.5px; }
@@ -52,8 +52,8 @@
         </header>
 
         <div class="flex flex-col lg:flex-row gap-8 items-start">
-            <div class="flex-grow bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
-                <svg id="tree-svg" width="100%" height="700"></svg>
+            <div class="flex-grow bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden" id="tree-container">
+                <svg id="tree-svg" width="100%" height="700" style="touch-action:pan-x pan-y;"></svg>
             </div>
             <div class="lg:w-72 flex-shrink-0 space-y-4">
                 <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 flex items-center gap-4">
@@ -75,9 +75,9 @@
                         <span class="text-orange-200 text-sm font-semibold" id="detail-count-label">papers</span>
                     </div>
                     <p class="text-orange-100 text-xs leading-relaxed" id="detail-summary"></p>
-                    <a id="detail-link" href="#" class="hidden mt-1 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-bold border border-white/30 hover:border-white/60 rounded-xl px-3 py-1.5 hover:bg-white/10 transition-all">
-                        대시보드 열기
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    <a id="detail-link" href="#" class="hidden mt-1 inline-flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/30 hover:border-white/60 rounded-xl text-sm font-bold text-white transition-all">
+                        대시보드 이동
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </a>
                 </div>
                 <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 space-y-3">
@@ -93,13 +93,16 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-orange-100 border border-orange-300 flex-shrink-0 ml-0.5"></div>
-                            <span class="text-xs font-semibold text-slate-600">논문 (호버로 확인)</span>
+                            <span class="text-xs font-semibold text-slate-600">논문 (클릭으로 확인)</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <p class="text-center text-xs text-slate-300 pb-8 italic">※ 노드를 클릭하면 해당 클러스터의 대시보드로 이동합니다. 드래그로 이동, 스크롤로 줌.</p>
+        <p class="text-center text-xs text-slate-300 italic">※ 노드를 클릭하면 상세 정보를 볼 수 있습니다. 드래그로 이동, 스크롤로 줌.</p>
+
+        <!-- 단계별 목록 -->
+        <div id="level-list" class="space-y-6 pb-8"></div>
     </div>
 
     <script>
@@ -113,13 +116,49 @@
          */
 
         const svgEl = document.getElementById('tree-svg');
-        const width = svgEl.parentElement.clientWidth || 720;
-        const height = 700;
+        const container = document.getElementById('tree-container');
 
-        const svg = d3.select('#tree-svg').attr('width', width).attr('height', height);
+        // 노드 수에 따라 내부 캔버스 크기 계산 (실제 그리기용)
+        function countNodes(d) { if (!d || !d.children) return 1; return 1 + d.children.reduce((s, c) => s + countNodes(c), 0); }
+        function maxLeaves(d) { if (!d || !d.children || !d.children.length) return 1; return d.children.reduce((s, c) => s + maxLeaves(c), 0); }
+        const maxNodes = Math.max(countNodes(problemTreeData), countNodes(methodTreeData), 1);
+        const leafCount = Math.max(maxLeaves(problemTreeData), maxLeaves(methodTreeData), 1);
+        const canvasSize = Math.max(300, Math.min(800, 150 + leafCount * 12));
+
+        // SVG는 뷰포트 크기에 맞추고, 렌더 후 fitView로 줌 조정
+        function getViewSize() {
+            const w = container.clientWidth || window.innerWidth - 32;
+            const h = Math.max(500, Math.min(window.innerHeight - 200, 700));
+            return [w, h];
+        }
+        let [viewW, viewH] = getViewSize();
+
+        const svg = d3.select('#tree-svg').attr('width', viewW).attr('height', viewH);
         const zoomGroup = svg.append('g');
-        const zoom = d3.zoom().scaleExtent([0.25, 4]).on('zoom', e => zoomGroup.attr('transform', e.transform));
+        const zoom = d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => zoomGroup.attr('transform', e.transform));
         svg.call(zoom);
+
+        // 렌더 후 전체 트리가 화면에 들어오도록 자동 줌
+        function fitView() {
+            const bbox = zoomGroup.node().getBBox();
+            if (!bbox.width || !bbox.height) return;
+            const pad = 40;
+            const scale = Math.min(
+                viewW / (bbox.width + pad * 2),
+                viewH / (bbox.height + pad * 2),
+                1.5  // 너무 크게 확대하지 않음
+            );
+            const tx = viewW / 2 - (bbox.x + bbox.width / 2) * scale;
+            const ty = viewH / 2 - (bbox.y + bbox.height / 2) * scale;
+            svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+        }
+
+        // 창 크기 변경 시 SVG 크기 재조정
+        window.addEventListener('resize', () => {
+            [viewW, viewH] = getViewSize();
+            svg.attr('width', viewW).attr('height', viewH);
+            fitView();
+        });
 
         function switchTab(type) {
             document.getElementById('tab-problem').classList.toggle('tab-active', type === 'problem');
@@ -130,9 +169,9 @@
         }
 
         function nodeRadius(d) {
-            if (d.depth === 0) return 24;
-            if (d.data.is_paper) return 4;
-            return d.children?.length ? 10 : 8;
+            if (d.depth === 0) return 28;
+            if (d.data.is_paper) return 6;
+            return 20;
         }
 
         // Polar → Cartesian
@@ -147,20 +186,48 @@
 
             document.getElementById('total-count').innerText = data.count ?? '—';
 
-            const cx = width / 2, cy = height / 2;
-            const radius = Math.min(width, height) / 2 - 180;
+            const cx = canvasSize / 2, cy = canvasSize / 2;
+            const radius = canvasSize / 2 - 15;
             const g = zoomGroup.append('g').attr('transform', `translate(${cx},${cy})`);
 
             const tree = d3.tree()
                 .size([2 * Math.PI, radius])
-                .separation((a, b) => (a.parent === b.parent ? 2 : 4) / Math.max(a.depth, 1));
+                .separation((a, b) => (a.parent === b.parent ? 1 : 1.5) / Math.max(a.depth, 1));
 
             const root = d3.hierarchy(data);
             tree(root);
 
-            // Fix level radii so rings don't crowd together
-            const levelR = [0, 130, 260, 400, 540];
-            root.each(d => { if (d.depth > 0) d.y = levelR[Math.min(d.depth, levelR.length - 1)]; });
+            // 트리 깊이에 따라 레벨 반지름을 동적 계산
+            const maxDepth = d3.max(root.descendants(), d => d.depth) || 1;
+            const ringStep = radius / maxDepth;
+            root.each(d => { if (d.depth > 0) d.y = ringStep * d.depth; });
+
+            // ── 노드 충돌 해소 (같은 깊이의 노드끼리 각도 밀어냄) ──
+            const PADDING = 4;
+            for (let iter = 0; iter < 60; iter++) {
+                let moved = false;
+                const nodes_arr = root.descendants().filter(d => d.depth > 0);
+                for (let i = 0; i < nodes_arr.length; i++) {
+                    for (let j = i + 1; j < nodes_arr.length; j++) {
+                        const a = nodes_arr[i], b = nodes_arr[j];
+                        const [ax, ay] = [a.y * Math.sin(a.x), -a.y * Math.cos(a.x)];
+                        const [bx, by] = [b.y * Math.sin(b.x), -b.y * Math.cos(b.x)];
+                        const dx = bx - ax, dy = by - ay;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const minDist = nodeRadius(a) + nodeRadius(b) + PADDING;
+                        if (dist < minDist && dist > 0) {
+                            const overlap = (minDist - dist) / 2;
+                            const angle = Math.atan2(dy, dx);
+                            // 각도(x)를 조정하여 밀어냄
+                            const push = overlap / Math.max(a.y, b.y, 1);
+                            a.x -= push;
+                            b.x += push;
+                            moved = true;
+                        }
+                    }
+                }
+                if (!moved) break;
+            }
 
             // Links
             g.append('g')
@@ -171,21 +238,18 @@
             // Nodes
             const node = g.append('g')
                 .selectAll('g').data(root.descendants()).join('g')
-                .attr('class', d => `node${(!d.data.is_paper && d.data.url) ? ' has-link' : ''}`)
+                .attr('class', 'node')
                 .attr('transform', d => {
                     const [x, y] = toXY(d);
                     return `translate(${x},${y})`;
                 })
                 .on('mouseover', function(_, d) {
                     d3.select(this).select('circle').attr('r', nodeRadius(d) * 1.4);
-                    if (d.data.is_paper) d3.select(this).select('.paper-label').attr('opacity', 1);
                     showDetail(d.data);
                 })
                 .on('mouseout', function(_, d) {
                     d3.select(this).select('circle').attr('r', nodeRadius(d));
-                    if (d.data.is_paper) d3.select(this).select('.paper-label').attr('opacity', 0);
-                })
-                .on('click', (_, d) => { if (!d.data.is_paper && d.data.url) window.location.href = d.data.url + '#cluster-distribution'; });
+                });
 
             // Circles
             node.append('circle')
@@ -198,94 +262,105 @@
                 .attr('stroke', d => d.depth === 0 ? 'none' : d.data.is_paper ? '#fdba74' : '#f97316')
                 .attr('stroke-width', d => d.depth === 0 ? 0 : 1.5);
 
-            // Root text inside circle
+            // Root: 총 개수
             node.filter(d => d.depth === 0).append('text')
                 .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                .attr('font-size', '10px').attr('font-weight', '800').attr('fill', '#fff')
-                .attr('pointer-events', 'none').text('ALL');
+                .attr('font-size', '11px').attr('font-weight', '800').attr('fill', '#fff')
+                .attr('pointer-events', 'none')
+                .text(d => d.data.count ?? '');
 
-            // Labels
-            node.filter(d => d.depth > 0).each(function(d) {
-                const [cx, cy] = toXY(d);
-                const dist = Math.sqrt(cx * cx + cy * cy) || 1;
-                const ux = cx / dist, uy = cy / dist;
+            // 클러스터: 원 안에 개수
+            node.filter(d => d.depth > 0 && !d.data.is_paper).append('text')
+                .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+                .attr('font-size', '10px').attr('font-weight', '700').attr('fill', '#f97316')
+                .attr('pointer-events', 'none')
+                .text(d => d.data.count);
 
-                const r = nodeRadius(d);
-                const gap = d.data.is_paper ? 5 : 7;
-                const ax = ux * (r + gap);
-                const ay = uy * (r + gap);
+            // 모든 노드 클릭 → 사이드바
+            node.filter(d => d.depth > 0).style('cursor', 'pointer')
+                .on('click', function(event, d) {
+                    event.stopPropagation();
+                    showDetail(d.data);
+                    scrollToDetail();
+                });
 
-                const grp = d3.select(this);
+            // ── 단계별 목록 생성 (부모별 그룹) ──
+            const levelList = document.getElementById('level-list');
+            levelList.innerHTML = '';
 
-                if (d.data.is_paper) {
-                    // 논문 리프: 호버 시만 표시
-                    const fnLabel = d.data.filename || '';
-                    const titleLabel = d.data.name;
+            const levels = d3.groups(
+                root.descendants().filter(d => d.depth > 0 && !d.data.is_paper),
+                d => d.depth
+            ).sort((a, b) => a[0] - b[0]);
 
-                    const charW = 5.0;
-                    const boxW = Math.max(fnLabel.length, titleLabel.length) * charW + 24;
-                    const boxH = 38;
+            levels.forEach(([depth, nodes]) => {
+                const section = document.createElement('div');
+                section.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
+                section.innerHTML = `<p class="text-xs font-black text-orange-500 uppercase tracking-widest">Depth ${depth} — ${nodes.length} clusters</p>`;
 
-                    let boxX;
-                    if (ux > 0.2)       boxX = ax;
-                    else if (ux < -0.2) boxX = ax - boxW;
-                    else                boxX = ax - boxW / 2;
-                    const boxY = ay - boxH / 2;
-
-                    const labelGrp = grp.append('g').attr('class', 'paper-label').attr('opacity', 0);
-
-                    labelGrp.append('rect')
-                        .attr('x', boxX).attr('y', boxY)
-                        .attr('width', boxW).attr('height', boxH)
-                        .attr('rx', 6)
-                        .attr('fill', '#fff7ed').attr('stroke', '#fdba74').attr('stroke-width', 1);
-
-                    labelGrp.append('text')
-                        .attr('x', boxX + boxW / 2).attr('y', boxY + 13)
-                        .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                        .attr('font-size', '8px').attr('font-weight', '700').attr('fill', '#ea580c')
-                        .attr('pointer-events', 'none').text(`[${fnLabel}]`);
-
-                    labelGrp.append('text')
-                        .attr('x', boxX + boxW / 2).attr('y', boxY + 27)
-                        .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                        .attr('font-size', '9px').attr('font-weight', '400').attr('fill', '#92400e')
-                        .attr('pointer-events', 'none').text(titleLabel);
-                } else {
-                    // 클러스터 노드: 항상 표시, 이름 + (논문수)
-                    const maxLen = 22;
-                    const label = d.data.name.length > maxLen
-                        ? d.data.name.substr(0, maxLen) + '…' : d.data.name;
-                    const countLabel = `(${d.data.count})`;
-                    const fullLabel = label + ' ' + countLabel;
-
-                    const charW = 5.8;
-                    const boxH = 24;
-                    const boxW = Math.min(fullLabel.length * charW + 20, 180);
-
-                    let boxX;
-                    if (ux > 0.2)       boxX = ax;
-                    else if (ux < -0.2) boxX = ax - boxW;
-                    else                boxX = ax - boxW / 2;
-                    const boxY = ay - boxH / 2;
-
-                    grp.append('rect')
-                        .attr('x', boxX).attr('y', boxY)
-                        .attr('width', boxW).attr('height', boxH)
-                        .attr('rx', 6)
-                        .attr('fill', d.children?.some(c => !c.data.is_paper) ? '#f8fafc' : '#fff7ed')
-                        .attr('stroke', d.children?.some(c => !c.data.is_paper) ? '#e2e8f0' : '#fdba74')
-                        .attr('stroke-width', 1);
-
-                    const txt = grp.append('text')
-                        .attr('x', boxX + boxW / 2).attr('y', boxY + boxH / 2)
-                        .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                        .attr('font-size', '10px').attr('pointer-events', 'none');
-
-                    txt.append('tspan').attr('font-weight', '700').attr('fill', '#334155').text(label + ' ');
-                    txt.append('tspan').attr('font-weight', '600').attr('fill', '#f97316').text(countLabel);
-                }
+                // 부모별 그룹
+                const byParent = d3.groups(nodes, n => n.parent?.data?.name || 'Root');
+                byParent.forEach(([parentName, children]) => {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'space-y-2';
+                    if (byParent.length > 1) {
+                        const parentLabel = document.createElement('p');
+                        parentLabel.className = 'text-xs font-bold text-slate-400 pl-1';
+                        parentLabel.textContent = '▸ ' + parentName;
+                        groupDiv.appendChild(parentLabel);
+                    }
+                    const list = document.createElement('div');
+                    list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2';
+                    children.forEach(n => {
+                        const item = document.createElement('button');
+                        item.className = 'text-left p-3 rounded-xl border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all group';
+                        item.innerHTML = `
+                            <p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p>
+                            <p class="text-xs text-orange-500 mt-0.5 font-semibold">${n.data.count} papers</p>`;
+                        item.onclick = () => { showDetail(n.data); scrollToDetail(); };
+                        list.appendChild(item);
+                    });
+                    groupDiv.appendChild(list);
+                    section.appendChild(groupDiv);
+                });
+                levelList.appendChild(section);
             });
+
+            // 논문 목록
+            const papers = root.descendants().filter(d => d.data.is_paper);
+            if (papers.length) {
+                const section = document.createElement('div');
+                section.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
+                section.innerHTML = `<p class="text-xs font-black text-orange-500 uppercase tracking-widest">Papers — ${papers.length} total</p>`;
+
+                // 부모(클러스터)별 그룹
+                const byParent = d3.groups(papers, n => n.parent?.data?.name || 'Root');
+                byParent.forEach(([parentName, children]) => {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'space-y-2';
+                    const parentLabel = document.createElement('p');
+                    parentLabel.className = 'text-xs font-bold text-slate-400 pl-1';
+                    parentLabel.textContent = '▸ ' + parentName;
+                    groupDiv.appendChild(parentLabel);
+                    const list = document.createElement('div');
+                    list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2';
+                    children.forEach(n => {
+                        const item = document.createElement('button');
+                        item.className = 'text-left p-3 rounded-xl border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all group';
+                        item.innerHTML = `
+                            <p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p>
+                            <p class="text-xs text-slate-400 mt-0.5">${n.data.filename || ''}</p>`;
+                        item.onclick = () => { showDetail(n.data); scrollToDetail(); };
+                        list.appendChild(item);
+                    });
+                    groupDiv.appendChild(list);
+                    section.appendChild(groupDiv);
+                });
+                levelList.appendChild(section);
+            }
+
+            // 전체 트리를 화면에 맞춤
+            fitView();
         }
 
         function showDetail(data) {
@@ -299,8 +374,17 @@
             }
             document.getElementById('detail-summary').innerText = data.summary || '';
             const linkEl = document.getElementById('detail-link');
-            if (data.url) { linkEl.href = data.url + '#cluster-distribution'; linkEl.classList.remove('hidden'); }
+            if (data.url) { linkEl.href = data.url; linkEl.classList.remove('hidden'); }
             else { linkEl.classList.add('hidden'); }
+            // 카드 강조 애니메이션
+            const card = document.getElementById('detail-card');
+            card.classList.remove('animate-slide-up');
+            void card.offsetWidth; // reflow
+            card.classList.add('animate-slide-up');
+        }
+
+        function scrollToDetail() {
+            document.getElementById('detail-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         renderTree(problemTreeData);
