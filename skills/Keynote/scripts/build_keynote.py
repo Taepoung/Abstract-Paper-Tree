@@ -39,62 +39,52 @@ def load_papers(output_dir):
     return paper_lookup
 
 
-def build_tree_data(axis_data, paper_lookup):
+def build_tree_data(axis_data):
     """
     keynote.json의 한 축(tool 또는 technique) 데이터를 트리 구조로 변환.
+    같은 이름의 그룹은 research_type과 무관하게 하나로 병합.
+    그룹이 리프 노드 (키워드는 하단 목록에서 pill로 표시).
 
     트리 구조:
       Root
-      ├── Method (research_type)
-      │   ├── Group Name
-      │   │   ├── paper1 (leaf)
-      │   │   └── paper2 (leaf)
-      │   └── ...
-      └── Empirical
-          └── ...
+      ├── Group Name (leaf)
+      └── ...
     """
-    total_papers = set()
-    type_children = []
+    merged = {}  # name → { summary, keywords list, research_types set }
+    order = []
 
     for rtype, groups in axis_data.items():
         if not groups:
             continue
-        group_children = []
-        type_paper_count = 0
-
         for group in groups:
-            paper_children = []
-            for fn in group.get('filenames', []):
-                paper = paper_lookup.get(fn, {})
-                paper_children.append({
-                    'name': paper.get('title', fn),
-                    'filename': fn,
-                    'is_paper': True,
-                    'research_type': paper.get('research_type', rtype),
-                    'keywords': paper.get('keywords', []),
-                })
-                total_papers.add(fn)
+            name = group['name']
+            if name not in merged:
+                merged[name] = {
+                    'summary': group.get('summary', ''),
+                    'keywords': set(group.get('keywords', [])),
+                    'research_types': set(),
+                }
+                order.append(name)
+            else:
+                merged[name]['keywords'].update(group.get('keywords', []))
+            merged[name]['research_types'].add(rtype)
 
-            group_children.append({
-                'name': group['name'],
-                'summary': group.get('summary', ''),
-                'keywords': group.get('keywords', []),
-                'count': len(paper_children),
-                'children': paper_children,
-            })
-            type_paper_count += len(paper_children)
-
-        type_children.append({
-            'name': rtype,
-            'is_type': True,
-            'count': type_paper_count,
-            'children': group_children,
+    all_keywords = set()
+    group_children = []
+    for name in order:
+        m = merged[name]
+        all_keywords.update(m['keywords'])
+        group_children.append({
+            'name': name,
+            'summary': m['summary'],
+            'keywords': sorted(m['keywords']),
+            'research_types': sorted(m['research_types']),
         })
 
     return {
         'name': 'Keynote',
-        'count': len(total_papers),
-        'children': type_children,
+        'count': len(all_keywords),
+        'children': group_children,
     }
 
 
@@ -119,10 +109,26 @@ def build_dashboard(keynote_data, paper_lookup, output_dir):
     print(f"Built: {output_file}")
 
 
-def build_tree(keynote_data, paper_lookup, output_dir):
+def build_kw_type_map(axis_data):
+    """keyword → [research_types] 정확한 매핑 (병합 전 원본 기준)"""
+    kw_map = {}
+    for rtype, groups in axis_data.items():
+        if not groups:
+            continue
+        for group in groups:
+            for kw in group.get('keywords', []):
+                if kw not in kw_map:
+                    kw_map[kw] = set()
+                kw_map[kw].add(rtype)
+    return {kw: sorted(types) for kw, types in kw_map.items()}
+
+
+def build_tree(keynote_data, output_dir):
     """트리 뷰 HTML 빌드"""
-    tool_tree = build_tree_data(keynote_data.get('tool', {}), paper_lookup)
-    technique_tree = build_tree_data(keynote_data.get('technique', {}), paper_lookup)
+    tool_tree = build_tree_data(keynote_data.get('tool', {}))
+    technique_tree = build_tree_data(keynote_data.get('technique', {}))
+    tool_kw_map = build_kw_type_map(keynote_data.get('tool', {}))
+    technique_kw_map = build_kw_type_map(keynote_data.get('technique', {}))
 
     template_path = os.path.join(SCRIPT_DIR, '..', 'assets', 'keynote_tree_template.html')
     with open(template_path, 'r', encoding='utf-8') as f:
@@ -135,6 +141,14 @@ def build_tree(keynote_data, paper_lookup, output_dir):
     html = html.replace(
         'const techniqueTreeData = {};',
         f'const techniqueTreeData = {safe_json(technique_tree)};'
+    )
+    html = html.replace(
+        'const toolKwTypeMap = {};',
+        f'const toolKwTypeMap = {safe_json(tool_kw_map)};'
+    )
+    html = html.replace(
+        'const techniqueKwTypeMap = {};',
+        f'const techniqueKwTypeMap = {safe_json(technique_kw_map)};'
     )
 
     output_file = os.path.join(output_dir, 'keynote_tree.html')
@@ -158,7 +172,7 @@ def main():
     paper_lookup = load_papers(output_dir)
 
     build_dashboard(keynote_data, paper_lookup, output_dir)
-    build_tree(keynote_data, paper_lookup, output_dir)
+    build_tree(keynote_data, output_dir)
 
 
 if __name__ == '__main__':

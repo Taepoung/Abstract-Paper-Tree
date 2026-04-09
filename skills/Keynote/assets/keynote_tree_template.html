@@ -19,8 +19,6 @@
         .node circle { transition: r 0.15s ease; }
         .node:hover circle { filter: drop-shadow(0 0 6px rgba(249,115,22,0.5)); }
         .link { fill: none; stroke: #e2e8f0; stroke-width: 1.5px; }
-        .dup-link { fill: none; stroke: #818cf8; stroke-width: 1.5px; stroke-dasharray: 5,4; opacity: 0.5; transition: opacity 0.15s, stroke-width 0.15s; }
-        .dup-link.highlighted { opacity: 1; stroke-width: 2.5px; }
         @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
     </style>
@@ -66,7 +64,7 @@
                     </div>
                     <div>
                         <p class="text-2xl font-extrabold text-slate-900" id="total-count">—</p>
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Papers</p>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Keywords</p>
                     </div>
                 </div>
                 <div id="detail-card" class="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-[2rem] text-white card-shadow shadow-orange-100 space-y-3 animate-slide-up">
@@ -91,24 +89,12 @@
                             <span class="text-xs font-semibold text-slate-600">Root</span>
                         </div>
                         <div class="flex items-center gap-3">
-                            <div class="w-4 h-4 rounded-full bg-white border-2 border-slate-400 flex-shrink-0"></div>
-                            <span class="text-xs font-semibold text-slate-600">Research Type</span>
-                        </div>
-                        <div class="flex items-center gap-3">
                             <div class="w-4 h-4 rounded-full bg-white border-2 border-orange-400 flex-shrink-0"></div>
                             <span class="text-xs font-semibold text-slate-600">Group</span>
                         </div>
                         <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-orange-100 border border-orange-300 flex-shrink-0 ml-0.5"></div>
-                            <span class="text-xs font-semibold text-slate-600">Paper</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-violet-100 border border-violet-400 flex-shrink-0 ml-0.5"></div>
-                            <span class="text-xs font-semibold text-slate-600">Duplicate paper</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <svg width="20" height="10" class="flex-shrink-0 ml-0.5"><line x1="0" y1="5" x2="20" y2="5" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="5,4"/></svg>
-                            <span class="text-xs font-semibold text-slate-600">Duplicate link</span>
+                            <div class="w-5 h-3 rounded-full flex-shrink-0 ml-0.5" style="background:linear-gradient(90deg, #93c5fd 50%, #86efac 50%); border:1px solid #3b82f6;"></div>
+                            <span class="text-xs font-semibold text-slate-600">Split pill (multi-type)</span>
                         </div>
                     </div>
                 </div>
@@ -125,19 +111,24 @@
          */
         const toolTreeData = {};
         const techniqueTreeData = {};
+        const toolKwTypeMap = {};
+        const techniqueKwTypeMap = {};
         /**
          * DATA_INJECTION_POINT_END
          */
 
         const TYPE_CONFIG = {
-            Method:     { fill: '#dbeafe', stroke: '#3b82f6', pill: 'bg-blue-50 text-blue-500 border-blue-200' },
-            Empirical:  { fill: '#dcfce7', stroke: '#22c55e', pill: 'bg-green-50 text-green-600 border-green-200' },
-            Qualitative:{ fill: '#f3e8ff', stroke: '#a855f7', pill: 'bg-purple-50 text-purple-500 border-purple-200' },
-            Benchmark:  { fill: '#fef9c3', stroke: '#eab308', pill: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
-            Survey:     { fill: '#f1f5f9', stroke: '#64748b', pill: 'bg-slate-100 text-slate-500 border-slate-200' },
+            Method:     { pill: 'bg-blue-50 text-blue-500 border-blue-200' },
+            Empirical:  { pill: 'bg-green-50 text-green-600 border-green-200' },
+            Qualitative:{ pill: 'bg-purple-50 text-purple-500 border-purple-200' },
+            Benchmark:  { pill: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
+            Survey:     { pill: 'bg-slate-100 text-slate-500 border-slate-200' },
         };
+        const SPLIT_COLORS = { Method:'#93c5fd', Empirical:'#86efac', Qualitative:'#c4b5fd', Benchmark:'#fcd34d', Survey:'#94a3b8' };
+        const SPLIT_BORDERS = { Method:'#3b82f6', Empirical:'#22c55e', Qualitative:'#a855f7', Benchmark:'#eab308', Survey:'#64748b' };
         const ALL_TYPES = Object.keys(TYPE_CONFIG);
-        let treeActiveTypes = new Set(ALL_TYPES);
+        let activeTypes = new Set(ALL_TYPES);
+        let currentRawData = null;
 
         // Type filter UI
         (function initTypeFilter() {
@@ -148,57 +139,83 @@
                 btn.className = `text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border transition-all ${TYPE_CONFIG[type].pill}`;
                 btn.textContent = type;
                 btn.onclick = () => {
-                    if (treeActiveTypes.has(type)) treeActiveTypes.delete(type);
-                    else treeActiveTypes.add(type);
-                    if (treeActiveTypes.size === 0) treeActiveTypes = new Set(ALL_TYPES);
-                    el.querySelectorAll('button').forEach(b => {
-                        b.style.opacity = treeActiveTypes.has(b.dataset.type) ? '1' : '0.3';
-                    });
-                    applyTypeFilter();
+                    if (activeTypes.has(type)) activeTypes.delete(type);
+                    else activeTypes.add(type);
+                    if (activeTypes.size === 0) activeTypes = new Set(ALL_TYPES);
+                    el.querySelectorAll('button').forEach(b => { b.style.opacity = activeTypes.has(b.dataset.type) ? '1' : '0.3'; });
+                    rerender();
                 };
                 el.appendChild(btn);
             });
         })();
 
-        function countLeaves(node) {
-            if (!node.children || !node.children.length) return node.is_paper ? 1 : 0;
-            return node.children.reduce((s, c) => s + countLeaves(c), 0);
-        }
-        function filterTreeData(node, types, isRoot) {
-            if (!node) return null;
-            if (node.is_paper) {
-                return types.has(node.research_type || 'Method') ? node : null;
-            }
-            const filteredChildren = (node.children || [])
-                .map(c => filterTreeData(c, types, false))
-                .filter(Boolean);
-            if (!isRoot && filteredChildren.length === 0) return null;
-            const filtered = { ...node, children: filteredChildren };
-            filtered.count = countLeaves(filtered);
-            return filtered;
+        function filterTree(data) {
+            if (!data || !data.children) return data;
+            const filtered = data.children.filter(g => {
+                const types = g.research_types || [];
+                return types.some(t => activeTypes.has(t));
+            });
+            // count = unique keywords that belong to at least one active type
+            const allKws = new Set();
+            filtered.forEach(g => (g.keywords || []).forEach(kw => {
+                const types = getKwTypes(kw);
+                if ([...types].some(t => activeTypes.has(t))) allKws.add(kw);
+            }));
+            return { ...data, children: filtered, count: allKws.size };
         }
 
-        let currentRawData = null;
-        let currentSelectedNodeName = null;
-
-        function findNodeByName(node, name) {
-            if (!node) return null;
-            if (node.name === name) return node;
-            for (const c of (node.children || [])) {
-                const found = findNodeByName(c, name);
-                if (found) return found;
-            }
-            return null;
-        }
-
-        function applyTypeFilter() {
+        function rerender() {
             if (!currentRawData) return;
-            const filtered = filterTreeData(currentRawData, treeActiveTypes, true);
-            renderTree(filtered, true);
-            if (currentSelectedNodeName) {
-                const match = findNodeByName(filtered, currentSelectedNodeName);
-                if (match) showDetail(match);
+            renderTree(filterTree(currentRawData), true);
+        }
+
+        let currentKwTypeMap = toolKwTypeMap;
+
+        function getKwTypes(kw) {
+            const types = currentKwTypeMap[kw];
+            if (!types) return new Set();
+            return new Set(types);
+        }
+
+        // Sort: per type in ALL_TYPES order → single first, then multi containing that type, alphabetical within each
+        function sortKwsByTypeCount(kws) {
+            const result = [];
+            const used = new Set();
+            for (const type of ALL_TYPES) {
+                if (!activeTypes.has(type)) continue;
+                const singles = kws.filter(kw => {
+                    if (used.has(kw)) return false;
+                    const active = [...getKwTypes(kw)].filter(t => activeTypes.has(t));
+                    return active.length === 1 && active[0] === type;
+                }).sort((a, b) => a.localeCompare(b));
+                singles.forEach(kw => { result.push(kw); used.add(kw); });
+                const multis = kws.filter(kw => {
+                    if (used.has(kw)) return false;
+                    const active = [...getKwTypes(kw)].filter(t => activeTypes.has(t));
+                    return active.length > 1 && active.includes(type);
+                }).sort((a, b) => {
+                    const ac = [...getKwTypes(a)].filter(t => activeTypes.has(t)).length;
+                    const bc = [...getKwTypes(b)].filter(t => activeTypes.has(t)).length;
+                    return ac !== bc ? ac - bc : a.localeCompare(b);
+                });
+                multis.forEach(kw => { result.push(kw); used.add(kw); });
             }
+            return result;
+        }
+
+        function buildSplitPill(kw, typesSet) {
+            const types = ALL_TYPES.filter(t => (typesSet || new Set()).has(t) && activeTypes.has(t));
+            if (types.length === 0) return '';
+            const colors = types.map(t => SPLIT_COLORS[t] || '#f1f5f9');
+            const borders = types.map(t => SPLIT_BORDERS[t] || '#94a3b8');
+            let bg, border;
+            if (colors.length === 1) { bg = colors[0]; border = borders[0]; }
+            else {
+                const step = 100 / colors.length;
+                bg = `linear-gradient(90deg, ${colors.map((c, i) => `${c} ${(i*step).toFixed(1)}% ${((i+1)*step).toFixed(1)}%`).join(', ')})`;
+                border = borders[0];
+            }
+            return `<span class="text-[11px] font-semibold px-2.5 py-1 rounded-full text-slate-700 cursor-pointer hover:opacity-80 transition-opacity" style="background:${bg};border:1.5px solid ${border};">${kw}</span>`;
         }
 
         const svgEl = document.getElementById('tree-svg');
@@ -210,17 +227,11 @@
             const r = Math.max(180, Math.ceil((lc * 32) / (2 * Math.PI)));
             return 2 * (r + 120);
         }
-
         function getSvgSize() {
             const w = svgEl.getBoundingClientRect().width || svgEl.clientWidth || container.clientWidth || window.innerWidth - 32;
-            const h = parseFloat(svgEl.getAttribute('height')) || 500;
-            return [w, h];
+            return [w, parseFloat(svgEl.getAttribute('height')) || 500];
         }
-
-        function updateHeight() {
-            const h = Math.max(350, Math.min(window.innerHeight - 150, 700));
-            svgEl.setAttribute('height', h);
-        }
+        function updateHeight() { svgEl.setAttribute('height', Math.max(350, Math.min(window.innerHeight - 150, 700))); }
         updateHeight();
 
         const svg = d3.select('#tree-svg');
@@ -234,11 +245,8 @@
             const [w, h] = getSvgSize();
             const pad = 40;
             const scale = Math.min(w / (bbox.width + pad * 2), h / (bbox.height + pad * 2), 1.5);
-            const tx = w / 2 - (bbox.x + bbox.width / 2) * scale;
-            const ty = h / 2 - (bbox.y + bbox.height / 2) * scale;
-            svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+            svg.call(zoom.transform, d3.zoomIdentity.translate(w/2 - (bbox.x + bbox.width/2)*scale, h/2 - (bbox.y + bbox.height/2)*scale).scale(scale));
         }
-
         new ResizeObserver(() => { updateHeight(); requestAnimationFrame(fitView); }).observe(container);
 
         function switchTab(type) {
@@ -246,39 +254,29 @@
             document.getElementById('tab-technique').classList.toggle('tab-active', type === 'technique');
             document.getElementById('tab-tool').classList.toggle('text-slate-400', type !== 'tool');
             document.getElementById('tab-technique').classList.toggle('text-slate-400', type !== 'technique');
-            const raw = type === 'tool' ? toolTreeData : techniqueTreeData;
-            currentRawData = raw;
-            renderTree(filterTreeData(raw, treeActiveTypes, true), true);
+            currentRawData = type === 'tool' ? toolTreeData : techniqueTreeData;
+            currentKwTypeMap = type === 'tool' ? toolKwTypeMap : techniqueKwTypeMap;
+            renderTree(filterTree(currentRawData), true);
         }
 
-        let _nodeRadiusRoot = 28, _nodeRadiusCluster = 20, _nodeRadiusLeaf = 6;
-        function nodeRadius(d) {
-            if (d.depth === 0) return _nodeRadiusRoot;
-            if (d.data.is_paper) return _nodeRadiusLeaf;
-            return _nodeRadiusCluster;
-        }
-
+        let _nodeRadiusRoot = 28, _nodeRadiusGroup = 16;
+        function nodeRadius(d) { return d.depth === 0 ? _nodeRadiusRoot : _nodeRadiusGroup; }
         function toXY(d) { return [d.y * Math.sin(d.x), -d.y * Math.cos(d.x)]; }
 
-        function renderTree(data, skipDataStore) {
-            if (!skipDataStore) currentRawData = data;
+        function renderTree(data, skipStore) {
+            if (!skipStore) currentRawData = data;
             zoomGroup.selectAll('*').remove();
             svg.call(zoom.transform, d3.zoomIdentity);
             if (!data) return;
             const hasChildren = data.children?.length > 0;
-
             document.getElementById('total-count').innerText = data.count ?? '—';
 
             const root = d3.hierarchy(data);
             const maxDepth = d3.max(root.descendants(), d => d.depth) || 1;
-            const GAP = 10;
-            const MARGIN = 1.5;
-            const LEAF_MARGIN = 1.0;
+            const GAP = 10, MARGIN = 1.5;
 
             function assignSectors(node, start, end) {
-                node._start = start;
-                node._end = end;
-                node.x = (start + end) / 2;
+                node._start = start; node._end = end; node.x = (start + end) / 2;
                 if (!node.children || !node.children.length) return;
                 const step = (end - start) / node.children.length;
                 node.children.forEach((c, i) => assignSectors(c, start + i * step, start + (i + 1) * step));
@@ -288,292 +286,142 @@
             const minRByDepth = new Array(maxDepth + 1).fill(0);
             root.each(d => {
                 if (d.depth === 0) return;
-                const w = d._end - d._start;
-                const sinHalf = Math.sin(w / 2);
+                const w = d._end - d._start, sinHalf = Math.sin(w / 2);
                 const need = (2 * nodeRadius(d) + GAP) * MARGIN;
-                const minR = sinHalf < 1e-9 ? need / Math.max(w, 1e-9) : need / (2 * sinHalf);
-                if (minR > minRByDepth[d.depth]) minRByDepth[d.depth] = minR;
+                minRByDepth[d.depth] = Math.max(minRByDepth[d.depth], sinHalf < 1e-9 ? need / Math.max(w, 1e-9) : need / (2 * sinHalf));
             });
-
-            const leaves = root.leaves();
-            const leafNodeR = 6;
-            const leafStep = (2 * Math.PI) / Math.max(leaves.length, 1);
-            const sinLeafHalf = Math.sin(leafStep / 2);
-            const leafMinR = sinLeafHalf < 1e-9
-                ? (2 * leafNodeR + GAP) * LEAF_MARGIN / Math.max(leafStep, 1e-9)
-                : (2 * leafNodeR + GAP) * LEAF_MARGIN / (2 * sinLeafHalf);
-            if (leafMinR > minRByDepth[maxDepth]) minRByDepth[maxDepth] = leafMinR;
-
-            for (let i = 1; i <= maxDepth; i++) {
-                minRByDepth[i] = Math.max(minRByDepth[i], minRByDepth[i - 1] + GAP);
-            }
-
-            const rawGaps = [];
-            for (let i = 1; i <= maxDepth; i++) rawGaps.push(minRByDepth[i] - minRByDepth[i - 1]);
-            const uniformGap = Math.max(...rawGaps);
-            const uniformR = new Array(maxDepth + 1).fill(0);
-            for (let i = 1; i <= maxDepth; i++) uniformR[i] = uniformGap * i;
+            for (let i = 1; i <= maxDepth; i++) minRByDepth[i] = Math.max(minRByDepth[i], minRByDepth[i-1] + GAP);
 
             const canvasSize = calcCanvasSize(data);
             const radius = canvasSize / 2 - 15;
-
             const sizeScale = Math.sqrt(canvasSize / 600);
-            _nodeRadiusRoot    = Math.round(28 * sizeScale);
-            _nodeRadiusCluster = Math.round(20 * sizeScale);
-            _nodeRadiusLeaf    = 6;
-            const fontRoot    = Math.round(11 * sizeScale * 1.4);
-            const fontCluster = Math.round(10 * sizeScale * 1.4);
+            _nodeRadiusRoot = Math.round(28 * sizeScale);
+            _nodeRadiusGroup = Math.round(16 * sizeScale);
+            const fontRoot = Math.round(11 * sizeScale * 1.4);
             const cx = canvasSize / 2, cy = canvasSize / 2;
             const g = zoomGroup.append('g').attr('transform', `translate(${cx},${cy})`);
 
             if (!hasChildren) {
                 g.append('circle').attr('r', 28).attr('fill', '#f97316');
                 g.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                    .attr('font-size', '11px').attr('font-weight', '800').attr('fill', '#fff')
-                    .text(data.count ?? '');
-                requestAnimationFrame(fitView);
-                return;
+                    .attr('font-size', '11px').attr('font-weight', '800').attr('fill', '#fff').text(data.count ?? '');
+                requestAnimationFrame(fitView); return;
             }
 
-            const rScale = uniformR[maxDepth] > radius ? radius / uniformR[maxDepth] : 1;
-            root.each(d => { d.y = d.depth === 0 ? 0 : uniformR[d.depth] * rScale; });
-
-            // Duplicate paper detection
-            const allPaperNodes = root.descendants().filter(d => d.data.is_paper && d.data.filename);
-            const byFilename = d3.group(allPaperNodes, d => d.data.filename);
-            const dupFilenames = new Set();
-            byFilename.forEach((nodes, fn) => { if (nodes.length > 1) dupFilenames.add(fn); });
+            const rScale = minRByDepth[maxDepth] > radius ? radius / minRByDepth[maxDepth] : 1;
+            root.each(d => { d.y = d.depth === 0 ? 0 : minRByDepth[d.depth] * rScale; });
 
             // Links
-            g.append('g')
-                .selectAll('path').data(root.links()).join('path')
+            g.append('g').selectAll('path').data(root.links()).join('path')
                 .attr('class', 'link')
-                .attr('d', d => {
-                    const [px, py] = toXY(d.source);
-                    const [cx2, cy2] = toXY(d.target);
-                    return `M${px.toFixed(1)},${py.toFixed(1)} L${cx2.toFixed(1)},${cy2.toFixed(1)}`;
-                });
+                .attr('d', d => { const [px,py]=toXY(d.source),[cx2,cy2]=toXY(d.target); return `M${px.toFixed(1)},${py.toFixed(1)} L${cx2.toFixed(1)},${cy2.toFixed(1)}`; });
 
-            // Duplicate links
-            const maxLeafR = d3.max(root.descendants(), d => d.y) || radius;
-            const baseOuterR = maxLeafR + 50;
-            const dupLayer = g.append('g').attr('class', 'dup-links');
-            const dupLinksByFile = new Map();
-            const dupFilenameList = [...byFilename.entries()].filter(([,n]) => n.length >= 2).map(([f]) => f);
-            dupFilenameList.forEach((filename, fileIdx) => {
-                const nodes = byFilename.get(filename);
-                const outerR = baseOuterR + fileIdx * 18;
-                const links = [];
-                for (let i = 0; i < nodes.length; i++) {
-                    for (let j = i + 1; j < nodes.length; j++) {
-                        const [ax, ay] = toXY(nodes[i]);
-                        const [bx, by] = toXY(nodes[j]);
-                        const rA = Math.sqrt(ax*ax + ay*ay) || 1;
-                        const rB = Math.sqrt(bx*bx + by*by) || 1;
-                        const oAx = (outerR * ax / rA).toFixed(1), oAy = (outerR * ay / rA).toFixed(1);
-                        const oBx = (outerR * bx / rB).toFixed(1), oBy = (outerR * by / rB).toFixed(1);
-                        let da = nodes[j].x - nodes[i].x;
-                        while (da > Math.PI) da -= 2 * Math.PI;
-                        while (da < -Math.PI) da += 2 * Math.PI;
-                        const sweep = da >= 0 ? 1 : 0;
-                        const pathD = `M${ax.toFixed(1)},${ay.toFixed(1)} L${oAx},${oAy} A${outerR},${outerR} 0 0 ${sweep} ${oBx},${oBy} L${bx.toFixed(1)},${by.toFixed(1)}`;
-                        links.push(dupLayer.append('path').attr('class', 'dup-link').attr('d', pathD));
-                    }
-                }
-                dupLinksByFile.set(filename, links);
+            // Duplicate keyword detection across groups
+            const dupKws = new Set();
+            const kwGroupCount = {};
+            (currentRawData.children || []).forEach(g => {
+                (g.keywords || []).forEach(kw => { kwGroupCount[kw] = (kwGroupCount[kw] || 0) + 1; });
             });
+            for (const [kw, cnt] of Object.entries(kwGroupCount)) {
+                if (cnt > 1) dupKws.add(kw);
+            }
 
             // Nodes
             const node = g.append('g')
                 .selectAll('g').data(root.descendants()).join('g')
                 .attr('class', 'node')
-                .attr('transform', d => {
-                    const [x, y] = toXY(d);
-                    return `translate(${x},${y})`;
-                })
-                .on('mouseover', function(_, d) {
-                    d3.select(this).select('circle').attr('r', nodeRadius(d) * 1.4);
-                    showDetail(d.data);
-                    if (d.data.is_paper && dupFilenames.has(d.data.filename)) {
-                        (dupLinksByFile.get(d.data.filename) || []).forEach(l => l.classed('highlighted', true));
-                        node.filter(n => n !== d && n.data.filename === d.data.filename)
-                            .select('circle').attr('r', nodeRadius(d) * 1.4);
-                    }
-                })
-                .on('mouseout', function(_, d) {
-                    d3.select(this).select('circle').attr('r', nodeRadius(d));
-                    if (d.data.is_paper && dupFilenames.has(d.data.filename)) {
-                        (dupLinksByFile.get(d.data.filename) || []).forEach(l => l.classed('highlighted', false));
-                        node.filter(n => n !== d && n.data.filename === d.data.filename)
-                            .select('circle').attr('r', nodeRadius(d));
-                    }
-                });
+                .attr('transform', d => { const [x,y]=toXY(d); return `translate(${x},${y})`; })
+                .on('mouseover', function(_, d) { d3.select(this).select('circle').attr('r', nodeRadius(d) * 1.4); showDetail(d.data); })
+                .on('mouseout', function(_, d) { d3.select(this).select('circle').attr('r', nodeRadius(d)); });
 
-            // Circles
-            node.append('circle')
-                .attr('r', nodeRadius)
-                .attr('fill', d => {
-                    if (d.depth === 0) return '#f97316';
-                    if (d.data.is_paper) {
-                        const cfg = TYPE_CONFIG[d.data.research_type] || TYPE_CONFIG['Method'];
-                        return cfg.fill;
-                    }
-                    if (d.depth === 1) return '#ffffff'; // research_type level
-                    return '#ffffff'; // group level
-                })
-                .attr('stroke', d => {
-                    if (d.depth === 0) return 'none';
-                    if (d.data.is_paper) {
-                        const cfg = TYPE_CONFIG[d.data.research_type] || TYPE_CONFIG['Method'];
-                        return cfg.stroke;
-                    }
-                    if (d.depth === 1) return '#94a3b8'; // research_type: slate
-                    return '#f97316'; // group: orange
-                })
+            node.append('circle').attr('r', nodeRadius)
+                .attr('fill', d => d.depth === 0 ? '#f97316' : '#ffffff')
+                .attr('stroke', d => d.depth === 0 ? 'none' : '#f97316')
                 .attr('stroke-width', d => d.depth === 0 ? 0 : 1.5);
 
-            // Root label
+            // Root: group count
             node.filter(d => d.depth === 0).append('text')
                 .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
                 .attr('font-size', `${fontRoot}px`).attr('font-weight', '800').attr('fill', '#fff')
-                .attr('pointer-events', 'none')
-                .text(d => d.data.count ?? '');
+                .attr('pointer-events', 'none').text(d => d.data.count ?? '');
 
-            // Cluster/type labels
-            node.filter(d => d.depth > 0 && !d.data.is_paper).append('text')
+            // Group: keyword count inside circle
+            const fontGroup = Math.round(10 * sizeScale * 1.4);
+            node.filter(d => d.depth > 0).append('text')
                 .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
-                .attr('font-size', `${fontCluster}px`).attr('font-weight', '700')
-                .attr('fill', d => d.depth === 1 ? '#64748b' : '#f97316')
+                .attr('font-size', `${fontGroup}px`).attr('font-weight', '700').attr('fill', '#f97316')
                 .attr('pointer-events', 'none')
-                .text(d => d.data.count);
+                .text(d => (d.data.keywords || []).filter(kw => { const t = getKwTypes(kw); return [...t].some(x => activeTypes.has(x)); }).length);
 
-            // Click handler
             node.filter(d => d.depth > 0).style('cursor', 'pointer')
-                .on('click', function(event, d) {
-                    event.stopPropagation();
-                    showDetail(d.data);
-                    scrollToDetail();
-                });
+                .on('click', function(event, d) { event.stopPropagation(); showDetail(d.data); scrollToDetail(); });
 
-            // Level list
+            // Level list: groups + keywords with split pills
             const levelList = document.getElementById('level-list');
             levelList.innerHTML = '';
 
-            const levels = d3.groups(
-                root.descendants().filter(d => d.depth > 0 && !d.data.is_paper),
-                d => d.depth
-            ).sort((a, b) => a[0] - b[0]);
-
-            const depthLabels = { 1: 'Research Type', 2: 'Group' };
-            levels.forEach(([depth, nodes]) => {
-                const section = document.createElement('div');
-                section.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
-                section.innerHTML = `<p class="text-xs font-black text-orange-500 uppercase tracking-widest">${depthLabels[depth] || 'Depth ' + depth} — ${nodes.length} items</p>`;
-
-                const byParent = d3.groups(nodes, n => n.parent?.data?.name || 'Root');
-                byParent.forEach(([parentName, children]) => {
-                    const groupDiv = document.createElement('div');
-                    groupDiv.className = 'space-y-2';
-                    if (byParent.length > 1) {
-                        const parentLabel = document.createElement('p');
-                        parentLabel.className = 'text-xs font-bold text-slate-400 pl-1';
-                        parentLabel.textContent = '\u25b8 ' + parentName;
-                        groupDiv.appendChild(parentLabel);
-                    }
-                    const list = document.createElement('div');
-                    list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2';
-                    children.forEach(n => {
-                        const item = document.createElement('button');
-                        item.className = 'text-left p-3 rounded-xl border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all group';
-                        item.innerHTML = `
-                            <p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p>
-                            <p class="text-xs text-orange-500 mt-0.5 font-semibold">${n.data.count} papers</p>`;
-                        item.onclick = () => { showDetail(n.data); scrollToDetail(); };
-                        list.appendChild(item);
-                    });
-                    groupDiv.appendChild(list);
-                    section.appendChild(groupDiv);
+            const groupNodes = root.descendants().filter(d => d.depth > 0);
+            if (groupNodes.length) {
+                // Groups
+                const gSection = document.createElement('div');
+                gSection.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
+                gSection.innerHTML = `<p class="text-xs font-black text-orange-500 uppercase tracking-widest">Groups — ${groupNodes.length} total</p>`;
+                const gList = document.createElement('div');
+                gList.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2';
+                groupNodes.forEach(n => {
+                    const item = document.createElement('button');
+                    item.className = 'text-left p-3 rounded-xl border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all group';
+                    const kwCount = (n.data.keywords || []).filter(kw => [...getKwTypes(kw)].some(t => activeTypes.has(t))).length;
+                    item.innerHTML = `<p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p><p class="text-xs text-orange-500 mt-0.5 font-semibold">${kwCount} keywords</p>`;
+                    item.onclick = () => { showDetail(n.data); scrollToDetail(); };
+                    gList.appendChild(item);
                 });
-                levelList.appendChild(section);
-            });
+                gSection.appendChild(gList);
+                levelList.appendChild(gSection);
 
-            // Paper list
-            const papers = root.descendants().filter(d => d.data.is_paper);
-            if (papers.length) {
-                const section = document.createElement('div');
-                section.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
-                const typeCounts = {};
-                papers.forEach(n => { const t = n.data.research_type || ''; typeCounts[t] = (typeCounts[t] || 0) + 1; });
-                const typeBadges = Object.entries(typeCounts).map(([t, cnt]) => {
-                    const cfg = TYPE_CONFIG[t];
-                    return cfg
-                        ? `<span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${cfg.pill}">${t} ${cnt}</span>`
-                        : `<span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-slate-100 text-slate-400 border-slate-200">${cnt}</span>`;
-                }).join('');
-                section.innerHTML = `<div class="flex items-center gap-2 flex-wrap"><p class="text-xs font-black text-orange-500 uppercase tracking-widest">Papers — ${papers.length} total</p>${typeBadges}</div>`;
-
-                const byParent = d3.groups(papers, n => n.parent?.data?.name || 'Root');
-                byParent.forEach(([parentName, children]) => {
-                    const groupDiv = document.createElement('div');
-                    groupDiv.className = 'space-y-2';
-                    const parentLabel = document.createElement('p');
-                    parentLabel.className = 'text-xs font-bold text-slate-400 pl-1';
-                    parentLabel.textContent = '\u25b8 ' + parentName;
-                    groupDiv.appendChild(parentLabel);
-                    const list = document.createElement('div');
-                    list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2';
-                    children.forEach(n => {
-                        const item = document.createElement('button');
-                        item.className = 'text-left p-3 rounded-xl border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all group';
-                        const rtCfg = TYPE_CONFIG[n.data.research_type];
-                        const badgeCls = rtCfg ? rtCfg.pill : 'bg-slate-100 text-slate-400 border-slate-200';
-                        const kwHtml = (n.data.keywords && n.data.keywords.length)
-                            ? `<div class="flex flex-wrap gap-1 mt-1.5">${n.data.keywords.map(k => `<span class="text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">${k}</span>`).join('')}</div>`
-                            : '';
-                        item.innerHTML = `
-                            <p class="text-sm font-bold text-slate-700 group-hover:text-orange-600 leading-snug">${n.data.name}</p>
-                            <p class="text-xs text-slate-400 mt-0.5 mb-1.5">${n.data.filename || ''}</p>
-                            <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${badgeCls}">${n.data.research_type || '—'}</span>${kwHtml}`;
-                        item.onclick = () => { showDetail(n.data); scrollToDetail(); };
-                        list.appendChild(item);
+                // Keywords with split pills grouped by parent (filtered by active types)
+                const allKws = new Set();
+                groupNodes.forEach(n => (n.data.keywords || []).forEach(kw => {
+                    if ([...getKwTypes(kw)].some(t => activeTypes.has(t))) allKws.add(kw);
+                }));
+                if (allKws.size) {
+                    const filteredDupCount = [...dupKws].filter(kw => allKws.has(kw)).length;
+                    const kwSection = document.createElement('div');
+                    kwSection.className = 'bg-white rounded-[2rem] card-shadow border border-slate-100 p-6 space-y-4';
+                    kwSection.innerHTML = `<p class="text-xs font-black text-orange-500 uppercase tracking-widest">Keywords — ${allKws.size} unique${filteredDupCount ? ` · ${filteredDupCount} shared` : ''}</p>`;
+                    groupNodes.forEach(n => {
+                        const kws = sortKwsByTypeCount((n.data.keywords || []).filter(kw => [...getKwTypes(kw)].some(t => activeTypes.has(t))));
+                        if (!kws.length) return;
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = 'space-y-2';
+                        const label = document.createElement('p');
+                        label.className = 'text-xs font-bold text-slate-400 pl-1';
+                        label.textContent = '\u25b8 ' + n.data.name;
+                        groupDiv.appendChild(label);
+                        const kwList = document.createElement('div');
+                        kwList.className = 'flex flex-wrap gap-1.5';
+                        kwList.innerHTML = kws.map(kw => buildSplitPill(kw, getKwTypes(kw))).join('');
+                        groupDiv.appendChild(kwList);
+                        kwSection.appendChild(groupDiv);
                     });
-                    groupDiv.appendChild(list);
-                    section.appendChild(groupDiv);
-                });
-                levelList.appendChild(section);
+                    levelList.appendChild(kwSection);
+                }
             }
 
             requestAnimationFrame(fitView);
         }
 
         function showDetail(data) {
-            currentSelectedNodeName = data.name;
             document.getElementById('detail-name').innerText = data.name;
-            if (data.is_paper) {
-                document.getElementById('detail-label').textContent = data.research_type || 'Paper';
-                document.getElementById('detail-count').innerText = '';
-                document.getElementById('detail-count-label').innerHTML = `<span style="font-size:10px;opacity:.7;">${data.filename || ''}</span>`;
-            } else {
-                document.getElementById('detail-label').textContent = data.is_type ? 'Research Type' : 'Group';
-                document.getElementById('detail-count').innerText = data.count ?? '—';
-                document.getElementById('detail-count-label').innerText = 'papers';
-            }
-            document.getElementById('detail-summary').innerText = data.is_paper ? '' : (data.summary || '');
+            document.getElementById('detail-label').textContent = 'Group';
+            const kwCount = (data.keywords || []).filter(kw => [...getKwTypes(kw)].some(t => activeTypes.has(t))).length;
+            document.getElementById('detail-count').innerText = kwCount || '—';
+            document.getElementById('detail-count-label').innerText = 'keywords';
+            document.getElementById('detail-summary').innerText = data.summary || '';
             const kwEl = document.getElementById('detail-keywords');
-            if (data.keywords?.length) {
-                kwEl.innerHTML = data.keywords.map(k =>
-                    `<span style="display:inline-block;margin:2px 2px 0 0;padding:1px 7px;background:rgba(255,255,255,0.18);border-radius:999px;font-size:10px;font-weight:600;color:#fff;">${k}</span>`
-                ).join('');
-                kwEl.classList.remove('hidden');
-                kwEl.style.display = 'flex';
-            } else {
-                kwEl.classList.add('hidden');
-                kwEl.style.display = '';
-            }
+            kwEl.classList.add('hidden'); kwEl.style.display = '';
             const card = document.getElementById('detail-card');
-            card.classList.remove('animate-slide-up');
-            void card.offsetWidth;
-            card.classList.add('animate-slide-up');
+            card.classList.remove('animate-slide-up'); void card.offsetWidth; card.classList.add('animate-slide-up');
         }
 
         function scrollToDetail() {
@@ -581,7 +429,7 @@
         }
 
         currentRawData = toolTreeData;
-        renderTree(filterTreeData(toolTreeData, treeActiveTypes, true), true);
+        renderTree(filterTree(toolTreeData), true);
     </script>
 </body>
 </html>
