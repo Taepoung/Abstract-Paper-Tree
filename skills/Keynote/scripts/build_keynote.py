@@ -1,12 +1,12 @@
 """
-keynote.json + results.jsonl을 읽어 keynote.html(대시보드)과
+keynote.json을 읽어 keynote.html(대시보드)과
 keynote_tree.html(트리 뷰)을 생성합니다.
 
 사용법:
     python skills/Keynote/scripts/build_keynote.py
 
 동작:
-    현재 디렉토리의 keynote.json과 results.jsonl을 읽고,
+    현재 디렉토리의 keynote.json을 읽고,
     템플릿에 데이터를 주입하여 두 개의 HTML 파일을 생성합니다.
 """
 import json
@@ -18,25 +18,6 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def safe_json(obj):
     return json.dumps(obj, ensure_ascii=False).replace('</', '<\\/')
-
-
-def load_papers(output_dir):
-    """results.jsonl → {filename: paper_data} dict"""
-    jsonl_path = os.path.join(output_dir, 'results.jsonl')
-    paper_lookup = {}
-    if os.path.exists(jsonl_path):
-        with open(jsonl_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        data = json.loads(line)
-                        fn = data.get('filename', '')
-                        if fn:
-                            paper_lookup[fn] = data
-                    except json.JSONDecodeError:
-                        continue
-    return paper_lookup
 
 
 def build_tree_data(axis_data):
@@ -88,7 +69,7 @@ def build_tree_data(axis_data):
     }
 
 
-def build_dashboard(keynote_data, paper_lookup, output_dir):
+def build_dashboard(keynote_data, output_dir):
     """대시보드 HTML 빌드"""
     template_path = os.path.join(SCRIPT_DIR, '..', 'assets', 'keynote_template.html')
     with open(template_path, 'r', encoding='utf-8') as f:
@@ -97,10 +78,6 @@ def build_dashboard(keynote_data, paper_lookup, output_dir):
     html = html.replace(
         'const keynoteData = {};',
         f'const keynoteData = {safe_json(keynote_data)};'
-    )
-    html = html.replace(
-        'const paperLookup = {};',
-        f'const paperLookup = {safe_json(paper_lookup)};'
     )
 
     output_file = os.path.join(output_dir, 'keynote.html')
@@ -169,9 +146,7 @@ def main():
     with open(keynote_path, 'r', encoding='utf-8') as f:
         keynote_data = json.load(f)
 
-    paper_lookup = load_papers(output_dir)
-
-    build_dashboard(keynote_data, paper_lookup, output_dir)
+    build_dashboard(keynote_data, output_dir)
     build_tree(keynote_data, output_dir)
 
 

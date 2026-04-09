@@ -18,8 +18,8 @@ argument-hint: "[언어(default:korean)]"
 
 ```
 사용법: python "${CLAUDE_PLUGIN_ROOT}/skills/Keynote/scripts/build_keynote.py"
-동작:  keynote.json + results.jsonl을 읽어 keynote.html(대시보드) + keynote_tree.html(트리) 생성
-입력:  ./keynote.json, ./results.jsonl
+동작:  keynote.json을 읽어 keynote.html(대시보드) + keynote_tree.html(트리) 생성
+입력:  ./keynote.json
 출력:  ./keynote.html, ./keynote_tree.html
 ```
 
@@ -43,7 +43,7 @@ argument-hint: "[언어(default:korean)]"
 
 #### 축 1: Tool (어떤 도구를 썼는가)
 
-논문들의 `keywords`를 중심으로, **비슷한 목적을 가진 기법들을** 서로 묶는다.
+각 논문의 `keywords`를 키워드 단위로 분해하여, **비슷한 방식의 키워드끼리** 묶는다.
 
 | 올바른 예 | 잘못된 예 |
 |---|---|
@@ -60,8 +60,8 @@ argument-hint: "[언어(default:korean)]"
 
 #### 축 2: Technique (무엇을 위해 활용했는가)
 
-논문들의 `keywords`와 `methodology`를 함께 읽어, **기법의 활용 맥락이 유사한 논문**끼리 묶는다.
-그룹 이름은 단순 도구명이 아니라, 그 기법이 **무엇을 위해 활용되었는지**를 나타내야 한다.
+각 논문의 `keywords`와 `methodology`를 함께 읽어, **활용 목적이 유사한 키워드끼리** 묶는다.
+그룹 이름은 단순 도구명이 아니라, 그 키워드들이 **무엇을 위해 활용되었는지**를 나타내야 한다.
 
 | 올바른 예 | 잘못된 예 |
 |---|---|
@@ -77,10 +77,10 @@ argument-hint: "[언어(default:korean)]"
 #### 공통 분류 규칙
 
 1. `research_type`별로 논문을 모은다.
-2. 각 축의 관점에 맞게 `keywords`(+ Technique는 `methodology`도)의 공통 패턴을 식별하여 그룹화한다.
-3. 하나의 논문이 여러 그룹에 속할 수 있다 (중복 허용).
-4. 논문이 1편뿐인 그룹도 허용한다.
-5. **모든 논문이 각 축에서 최소 하나의 그룹에 포함**되어야 한다. 누락 검증 후 저장한다.
+2. 각 논문의 키워드를 개별 단위로 분해한 뒤, 각 축의 관점에 맞게 **키워드끼리** 그룹화한다 (Technique는 `methodology`도 참고).
+3. 하나의 키워드가 여러 그룹에 속할 수 있다 (중복 허용).
+4. 키워드가 1개뿐인 그룹도 허용한다.
+5. **모든 키워드가 각 축에서 최소 하나의 그룹에 포함**되어야 한다. 키워드 단위로 누락을 검증한다.
 
 ### 3단계: keynote.json 저장
 
@@ -93,8 +93,7 @@ argument-hint: "[언어(default:korean)]"
       {
         "name": "Graph Neural Network",
         "summary": "GNN을 활용하여 코드의 구조적 관계를 모델링하는 연구들",
-        "keywords": ["GNN", "AST", "Node Embedding"],
-        "filenames": ["paper1.pdf", "paper2.pdf"]
+        "keywords": ["GNN", "AST", "Node Embedding"]
       }
     ],
     "Empirical": []
@@ -104,8 +103,7 @@ argument-hint: "[언어(default:korean)]"
       {
         "name": "그래프 기반 코드 구조 추상화",
         "summary": "AST·CFG 등 코드 그래프를 GNN으로 인코딩하여 구조적 의미를 추상화하는 기법 패턴",
-        "keywords": ["GNN", "AST", "Node Embedding"],
-        "filenames": ["paper1.pdf", "paper2.pdf"]
+        "keywords": ["GNN", "AST", "Node Embedding"]
       }
     ],
     "Empirical": []
@@ -118,13 +116,11 @@ argument-hint: "[언어(default:korean)]"
 - 각 축 아래 키: `research_type` 값. 해당 타입의 논문이 없으면 키 자체를 생략한다.
 - `name`: 그룹 이름 (Tool은 영어 도구 범주, Technique는 `language`에 맞는 활용 방식)
 - `summary`: 그룹 설명 (`language`에 맞는 언어로 작성)
-- `keywords`: 이 그룹에 속한 논문들의 키워드 합집합 (중복 제거)
-- `filenames`: `results.jsonl`의 `filename`과 **정확히 일치**하는 PDF 파일명 배열
+- `keywords`: 이 그룹에 배정된 키워드 목록 (중복 제거)
 
 **저장 전 체크리스트** (하나라도 실패하면 저장하지 않고 수정):
 - [ ] 모든 `research_type`이 5가지 허용값 중 하나인가?
-- [ ] 모든 `filenames`가 `results.jsonl`에 존재하는 실제 파일명인가?
-- [ ] 각 축에서, `results.jsonl`의 모든 논문이 최소 하나의 그룹에 포함되었는가?
+- [ ] 각 축에서, `results.jsonl`의 모든 키워드가 최소 하나의 그룹에 포함되었는가?
 - [ ] Tool 그룹 이름이 영어 도구/기술 범주인가?
 - [ ] Technique 그룹 이름이 활용 방식을 포함하고 있는가?
 

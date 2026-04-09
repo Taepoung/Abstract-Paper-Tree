@@ -49,11 +49,7 @@
     </header>
 
     <!-- Stats Row -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-2xl card-shadow border border-slate-100 text-center">
-            <p class="text-2xl font-extrabold text-slate-900" id="stat-papers">0</p>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Papers</p>
-        </div>
+    <div class="grid grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl card-shadow border border-slate-100 text-center">
             <p class="text-2xl font-extrabold text-slate-900" id="stat-groups">0</p>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Groups</p>
@@ -101,7 +97,6 @@
      * DATA_INJECTION_POINT_START
      */
     const keynoteData = {};
-    const paperLookup = {};
     /**
      * DATA_INJECTION_POINT_END
      */
@@ -135,34 +130,33 @@
         for (const [rtype, arr] of Object.entries(axisData)) {
             (arr || []).forEach(g => {
                 if (!map.has(g.name)) {
-                    map.set(g.name, { name: g.name, summary: g.summary || '', keywords: new Set(), papersByType: {} });
+                    map.set(g.name, { name: g.name, summary: g.summary || '', keywords: new Set(), kwsByType: {} });
                     order.push(g.name);
                 }
                 const m = map.get(g.name);
-                (g.keywords || []).forEach(k => m.keywords.add(k));
-                if (!m.papersByType[rtype]) m.papersByType[rtype] = [];
-                (g.filenames || []).forEach(fn => {
-                    if (!m.papersByType[rtype].includes(fn)) m.papersByType[rtype].push(fn);
-                });
+                if (!m.kwsByType[rtype]) m.kwsByType[rtype] = new Set();
+                (g.keywords || []).forEach(k => { m.keywords.add(k); m.kwsByType[rtype].add(k); });
             });
         }
 
         return order.map(name => {
             const m = map.get(name);
-            return { ...m, keywords: [...m.keywords] };
+            const kwsByType = {};
+            for (const [t, s] of Object.entries(m.kwsByType)) kwsByType[t] = [...s];
+            return { ...m, keywords: [...m.keywords], kwsByType };
         });
     }
 
-    // Apply active type filter — returns merged groups with only active-type papers
+    // Apply active type filter — returns merged groups with only active-type keywords
     function getFilteredGroups() {
         return getMergedGroups().map(g => {
             const filtered = {};
-            for (const [t, fns] of Object.entries(g.papersByType)) {
-                if (activeTypes.has(t)) filtered[t] = fns;
+            for (const [t, kws] of Object.entries(g.kwsByType)) {
+                if (activeTypes.has(t)) filtered[t] = kws;
             }
-            const allFns = Object.values(filtered).flat();
-            if (allFns.length === 0) return null;
-            return { ...g, papersByType: filtered, _allFilenames: [...new Set(allFns)] };
+            const allKws = Object.values(filtered).flat();
+            if (allKws.length === 0) return null;
+            return { ...g, kwsByType: filtered };
         }).filter(Boolean);
     }
 
@@ -215,17 +209,14 @@
     function updateStats() {
         const groups = getFilteredGroups();
         const kwTypeMap = getKeywordTypeMap();
-        const allFilenames = new Set();
         const allKeywords = new Set();
         groups.forEach(g => {
-            (g._allFilenames || []).forEach(f => allFilenames.add(f));
             (g.keywords || []).forEach(kw => {
                 const types = kwTypeMap[kw];
                 if (types && [...types].some(t => activeTypes.has(t))) allKeywords.add(kw);
             });
         });
         const available = getAvailableTypes().filter(t => activeTypes.has(t));
-        document.getElementById('stat-papers').textContent = allFilenames.size;
         document.getElementById('stat-groups').textContent = groups.length;
         document.getElementById('stat-keywords').textContent = allKeywords.size;
         document.getElementById('stat-types').textContent = available.length;
@@ -242,12 +233,12 @@
         const ctx = document.getElementById('groupChart').getContext('2d');
 
         // Stacked bar: one dataset per research_type that appears
-        const usedTypes = ALL_TYPES.filter(t => activeTypes.has(t) && groups.some(g => g.papersByType[t]));
+        const usedTypes = ALL_TYPES.filter(t => activeTypes.has(t) && groups.some(g => g.kwsByType[t]));
         const datasets = usedTypes.map(type => {
             const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.Method;
             return {
                 label: type,
-                data: groups.map(g => (g.papersByType[type] || []).length),
+                data: groups.map(g => (g.kwsByType[type] || []).length),
                 backgroundColor: cfg.color,
                 borderColor: cfg.border,
                 borderWidth: 0,
@@ -315,7 +306,7 @@
             card.style.opacity = '0';
 
             // Type badges for this group
-            const typeBadges = Object.keys(group.papersByType)
+            const typeBadges = Object.keys(group.kwsByType)
                 .map(t => { const c = TYPE_CONFIG[t] || TYPE_CONFIG.Method; return `<span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${c.pill}">${t}</span>`; })
                 .join('');
 
