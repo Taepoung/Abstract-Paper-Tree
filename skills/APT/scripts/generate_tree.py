@@ -12,6 +12,14 @@ import json
 def safe_json(obj):
     import json
     return json.dumps(obj, ensure_ascii=False).replace('</', '<\/')
+
+
+def _write_chunked(filepath, content, chunk_size=32*1024):
+    with open(filepath, 'w', encoding='utf-8') as f:
+        for i in range(0, len(content), chunk_size):
+            f.write(content[i:i + chunk_size])
+            f.flush()
+            os.fsync(f.fileno())
 import os
 import re
 import sys
@@ -188,10 +196,8 @@ def generate_tree(output_dir):
     )
 
     output_file = os.path.join(output_dir, 'tree.html')
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(html)
-
-    print(f"Generated {output_file}")
+    _write_chunked(output_file, html)
+    print(f"Generated {output_file} ({len(html)} bytes)")
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir', nargs='?', default='.')

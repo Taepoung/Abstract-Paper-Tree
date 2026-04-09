@@ -6,6 +6,14 @@ import json
 def safe_json(obj):
     import json
     return json.dumps(obj, ensure_ascii=False).replace('</', '<\/')
+
+
+def _write_chunked(filepath, content, chunk_size=32*1024):
+    with open(filepath, 'w', encoding='utf-8') as f:
+        for i in range(0, len(content), chunk_size):
+            f.write(content[i:i + chunk_size])
+            f.flush()
+            os.fsync(f.fileno())
 import os
 import re
 import sys
@@ -105,9 +113,7 @@ def generate_dashboard(output_dir, parent_url=None, page_title=None, tree_url=No
         f'const treeUrl = {json.dumps(tree_url or "tree.html")};'
     )
 
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(html)
-
+    _write_chunked(output_file, html)
     print(f"Generated {output_file} ({len(all_results)} papers)")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

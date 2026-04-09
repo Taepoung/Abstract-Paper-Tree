@@ -16,8 +16,21 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+CHUNK_SIZE = 32 * 1024  # 32KB
+
+
 def safe_json(obj):
     return json.dumps(obj, ensure_ascii=False).replace('</', '<\\/')
+
+
+def write_chunked(filepath, content):
+    """파일을 청크 단위로 나눠 쓴다."""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        for i in range(0, len(content), CHUNK_SIZE):
+            f.write(content[i:i + CHUNK_SIZE])
+            f.flush()
+            os.fsync(f.fileno())
+    print(f"Built: {filepath} ({len(content)} bytes)")
 
 
 def build_tree_data(axis_data):
@@ -80,10 +93,7 @@ def build_dashboard(keynote_data, output_dir):
         f'const keynoteData = {safe_json(keynote_data)};'
     )
 
-    output_file = os.path.join(output_dir, 'keynote.html')
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f"Built: {output_file}")
+    write_chunked(os.path.join(output_dir, 'keynote.html'), html)
 
 
 def build_kw_type_map(axis_data):
@@ -128,10 +138,7 @@ def build_tree(keynote_data, output_dir):
         f'const techniqueKwTypeMap = {safe_json(technique_kw_map)};'
     )
 
-    output_file = os.path.join(output_dir, 'keynote_tree.html')
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f"Built: {output_file}")
+    write_chunked(os.path.join(output_dir, 'keynote_tree.html'), html)
 
 
 def main():
