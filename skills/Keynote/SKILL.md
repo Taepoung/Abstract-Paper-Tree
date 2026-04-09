@@ -43,33 +43,34 @@ argument-hint: "[언어(default:korean)]"
 
 #### 축 1: Tool (어떤 도구를 썼는가)
 
-논문들의 `keywords`를 중심으로, **사용된 핵심 도구·기술 자체**로 묶는다.
-
-그룹 이름은 도구·기술의 범주를 나타낸다. 활용 맥락은 포함하지 않는다.
+논문들의 `keywords`를 중심으로, **비슷한 목적을 가진 기법들을** 서로 묶는다.
 
 | 올바른 예 | 잘못된 예 |
 |---|---|
-| Graph Neural Network | 그래프 기반 코드 구조 추상화 |
-| Static Analysis | 정적 분석 기반 결함 패턴 탐지 |
-| Large Language Model | LLM 기반 자연어-코드 의미 정렬 |
-| Reinforcement Learning | 강화학습 기반 탐색 공간 최적화 |
+| Graph | GCN |
+| Clustering | K-Means |
+| Attention | Multi-Head Attention |
+| Reasoning | Chain-of-Thought |
+
+> 너무 넓게 묶지 않는다. 비슷한 도구끼리만 묶으면 충분하다.
 
 **Tool 그룹 이름은 영어로 작성한다** (language 인자와 무관). `summary`는 `language`에 따른다.
 
 ---
 
-#### 축 2: Technique (어떻게 활용했는가)
+#### 축 2: Technique (무엇을 위해 활용했는가)
 
 논문들의 `keywords`와 `methodology`를 함께 읽어, **기법의 활용 맥락이 유사한 논문**끼리 묶는다.
+그룹 이름은 단순 도구명이 아니라, 그 기법이 **무엇을 위해 활용되었는지**를 나타내야 한다.
 
-그룹 이름은 단순 도구명이 아니라, 그 기법이 **어떤 방식으로 활용되었는지**를 나타내야 한다.
-
-| 잘못된 예 (도구명만) | 올바른 예 (활용 방식 포함) |
+| 올바른 예 | 잘못된 예 |
 |---|---|
-| 그래프 기반 | 그래프 기반 코드 구조 추상화 |
-| LLM 활용 | LLM 기반 자연어-코드 의미 정렬 |
-| 정적 분석 | 정적 분석 기반 결함 패턴 탐지 |
-| 강화학습 | 강화학습 기반 탐색 공간 최적화 |
+| Code Dependency Modeling | Graph-based Method |
+| Topic Discovery | Clustering Approach |
+| Cross-modal Fusion | Attention Mechanism |
+| Output Verification | Reasoning Strategy |
+
+> 너무 넓게 묶지 않는다. 비슷한 활용 맥락끼리만 묶으면 충분하다.
 
 ---
 
